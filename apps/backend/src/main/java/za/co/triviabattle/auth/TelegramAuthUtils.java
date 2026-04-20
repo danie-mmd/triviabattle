@@ -162,20 +162,28 @@ public class TelegramAuthUtils {
     }
 
     private long extractLong(String json, String key) {
-        String search = "\"" + key + "\":";
+        String search = "\"" + key + "\"";
         int idx = json.indexOf(search);
         if (idx < 0) return 0;
-        int start = idx + search.length();
+        int colonIdx = json.indexOf(':', idx + search.length());
+        if (colonIdx < 0) return 0;
+        int start = colonIdx + 1;
+        while (start < json.length() && Character.isWhitespace(json.charAt(start))) start++;
         int end = start;
         while (end < json.length() && (Character.isDigit(json.charAt(end)) || json.charAt(end) == '-')) end++;
+        if (start == end) return 0;
         return Long.parseLong(json.substring(start, end));
     }
 
     private String extractString(String json, String key) {
-        String search = "\"" + key + "\":\"";
+        String search = "\"" + key + "\"";
         int idx = json.indexOf(search);
         if (idx < 0) return null;
-        int start = idx + search.length();
+        int colonIdx = json.indexOf(':', idx + search.length());
+        if (colonIdx < 0) return null;
+        int start = json.indexOf('"', colonIdx);
+        if (start < 0) return null;
+        start += 1;
         int end = json.indexOf('"', start);
         if (end < 0) return null;
         return json.substring(start, end);

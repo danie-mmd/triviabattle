@@ -17,7 +17,7 @@ export interface Player {
   username?: string
 }
 
-export type SabotageType = 'INK_BLOT' | 'FREEZE' | 'SHUFFLE'
+export type SabotageType = 'INK_BLOT' | 'SHUFFLE'
 
 interface GameStoreState {
   gameState: GameState
@@ -30,6 +30,7 @@ interface GameStoreState {
   answeredThisRound: boolean
   matchType: 'TON' | 'CREDITS'
   credits: number
+  powerUpUsedThisGame: boolean
   
   // Actions
   setGameState: (state: GameState) => void
@@ -42,6 +43,7 @@ interface GameStoreState {
   setCredits: (credits: number) => void
   deductStars: (amount: number) => void
   setAnsweredThisRound: (v: boolean) => void
+  setPowerUpUsedThisGame: (v: boolean) => void
   resetRound: () => void
   setMatchType: (matchType: 'TON' | 'CREDITS') => void
   reset: () => void
@@ -58,6 +60,7 @@ export const useGameStore = create<GameStoreState>((set) => ({
   answeredThisRound: false,
   matchType: 'TON',
   credits: -1,
+  powerUpUsedThisGame: false,
 
   setGameState: (gameState) => set({ gameState, answeredThisRound: false }),
   setCurrentQuestion: (question) => set({ currentQuestion: question, answeredThisRound: false }),
@@ -73,6 +76,7 @@ export const useGameStore = create<GameStoreState>((set) => ({
   setStarsBalance: (stars) => set({ starsBalance: stars }),
   deductStars: (amount) => set((state) => ({ starsBalance: Math.max(0, state.starsBalance - amount) })),
   setAnsweredThisRound: (v) => set({ answeredThisRound: v }),
+  setPowerUpUsedThisGame: (v) => set({ powerUpUsedThisGame: v }),
 
   resetRound: () => set({ currentQuestion: null, answeredThisRound: false }),
 
@@ -87,5 +91,6 @@ export const useGameStore = create<GameStoreState>((set) => ({
     sabotageType: null,
     answeredThisRound: false,
     credits: -1,
+    powerUpUsedThisGame: false,
   }),
 }))

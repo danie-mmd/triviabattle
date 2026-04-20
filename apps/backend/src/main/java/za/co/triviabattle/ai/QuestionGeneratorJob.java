@@ -171,29 +171,41 @@ public class QuestionGeneratorJob {
 
     private String buildPrompt() {
         return """
-                You are a trivia question generator. Today is %s.
+                You are a professional trivia question generator. Today is %s.
                 
-                Generate exactly 10 trivia questions based on CURRENT trending news and events in South Africa and globally.
-                Focus on: politics, sport, technology, entertainment, science, and general knowledge.
+                TASK:
+                Generate exactly 10 SHORT, PUNCHY trivia questions.
+                Provide a mix of:
+                - 50%% CURRENT trending news and events (South Africa & Global).
+                - 50%% EVERGREEN general knowledge (History, Geography, Science, Movies, etc.).
                 
-                Return ONLY a valid JSON array (no markdown, no explanation) in this exact format:
+                DIFFICULTY MIX:
+                - 4 Easy questions
+                - 4 Medium questions
+                - 2 Hard questions
+                
+                STYLE RULES:
+                - BREVITY IS KEY: Questions must be short and direct (MAX 100 characters).
+                - NO FILLER: Avoid introductory clauses like "To combat the challenge of..." or "In a surprising move...".
+                - GET STRAIGHT TO THE POINT: e.g., "Which organ produces insulin?" instead of a long medical explanation.
+                - Focus on: politics, sport, technology, movies, entertainment, science.
+                
+                JSON FORMAT (Return ONLY the array):
                 [
                   {
-                    "question": "What is ...",
-                    "options": ["Option A", "Option B", "Option C", "Option D"],
+                    "question": "What...",
+                    "options": ["A", "B", "C", "D"],
                     "correctIndex": 0,
-                    "category": "Sport",
-                    "difficulty": "medium",
-                    "region": "south_africa"
+                    "category": "Topic",
+                    "difficulty": "easy/medium/hard",
+                    "region": "south_africa/global"
                   }
                 ]
                 
-                Rules:
-                - correctIndex must be 0–3 (index into options array)
-                - difficulty: "easy", "medium", or "hard"
-                - region: "south_africa" or "global"
-                - All 4 options must be plausible to avoid obvious guessing
-                - Questions must be factually accurate as of today
+                RULES:
+                - Options must be concise (max 3-5 words each).
+                - Difficulty must exactly match the requested mix.
+                - Region must be "south_africa" (5 questions) or "global" (5 questions).
                 """.formatted(LocalDate.now());
     }
 }

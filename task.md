@@ -11,8 +11,11 @@
 - [ ] Mission 2.3 – The Scoring Brain: Time-Bucket scoring (500ms intervals)
 
 ## Phase 3: The Economic Layer (Prize Pool)
-- [ ] Mission 3.1 – Smart Contract: Tact contract (entry fee escrow + backend-authorized payout)
+- [/] Mission 3.1 – Smart Contract: Tact contract (entry fee escrow + backend-authorized payout)
+
 - [ ] Mission 3.2 – Payment Flow: Telegram Stars API + TonConnect UI
+- [x] Mission 3.3 – Payout Microservice: Node.js Express service using standard TON SDK (@ton/ton) for robust payout execution.
+
 
 ## Phase 4: The "Unfair Advantage" (UI & AI)
 - [ ] Mission 4.1 – Sabotage UI: React power-up components (Ink Blot overlay, WebSocket events)

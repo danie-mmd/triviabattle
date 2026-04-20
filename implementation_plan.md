@@ -121,6 +121,15 @@ A multiplayer trivia Mini App for Telegram where 5 players compete in real-time,
 - `POST /api/payments/stars/invoice` – creates an invoice via Telegram Bot API (`createInvoiceLink`)
 - `POST /api/payments/stars/webhook` – handles `pre_checkout_query` + `successful_payment` updates
 
+#### [NEW] Payout Microservice – `apps/ton-payout/`
+- Node.js + Express + TypeScript microservice.
+- Integrates `@ton/ton` and `@ton/crypto` for secure transaction signing and building BoCs.
+- Exposes internal HTTP POST endpoints for the Java backend to trigger prize payouts.
+- Reads `TON_WALLET_MNEMONIC` or private key securely from environment variables.
+
+#### [MODIFY] Backend: `src/main/java/.../payment/TonService.java`
+- Update `payoutToWinner` to make an internal HTTP request to the new Node.js microservice (`apps/ton-payout`) instead of handling direct blockchain interaction via Java.
+
 ---
 
 ### Phase 4: UI & AI

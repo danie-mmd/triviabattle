@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useTelegram } from '@/hooks/useTelegram'
 import { paymentApi } from '@/services/api'
+import { useGameStore } from '@/store/gameStore'
 
 interface Product {
   type: string
@@ -12,9 +13,10 @@ interface Product {
 }
 
 const PRODUCTS: Product[] = [
-  { type: 'INK_BLOT_PACK', icon: '🖋️', label: 'Ink Blot ×3', description: 'Sabotage 3 opponents', stars: 25 },
-  { type: 'FREEZE_PACK',   icon: '🧊', label: 'Freeze ×2',   description: 'Stop their timer',    stars: 30 },
-  { type: 'DOUBLE_PACK',   icon: '⚡', label: '2× Points ×2', description: 'Double your score',  stars: 40 },
+  { type: 'STARS_1', icon: '⭐', label: '1 Star (Test)', description: 'Test pack of stars', stars: 1 },
+  { type: 'STARS_25', icon: '⭐', label: '25 Stars', description: 'Small pack of stars', stars: 25 },
+  { type: 'STARS_50', icon: '⭐', label: '50 Stars', description: 'Medium pack of stars', stars: 50 },
+  { type: 'STARS_100', icon: '⭐', label: '100 Stars', description: 'Large pack of stars', stars: 100 },
 ]
 
 export default function StarsPurchase() {
@@ -29,6 +31,17 @@ export default function StarsPurchase() {
         if (status === 'paid') {
           // Power-up will be credited server-side via the webhook
           console.log(`[Stars] ${product.label} purchased ✅`)
+          
+          // Optimistically update UI balance
+          const store = useGameStore.getState()
+          if (store.starsBalance >= 0) {
+            store.setStarsBalance(store.starsBalance + product.stars)
+          }
+          
+          // Optional: give user visual feedback
+          alert(`Successfully purchased ${product.label}!`)
+        } else {
+          console.log(`[Stars] Payment status: ${status}`)
         }
       })
     } catch (err) {

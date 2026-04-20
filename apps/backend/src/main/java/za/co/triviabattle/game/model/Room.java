@@ -71,6 +71,10 @@ public class Room implements Serializable {
     @Builder.Default
     private long prizePoolNano = 0L;
 
+    /** Tracks users who have already used a power-up in this game */
+    @Builder.Default
+    private java.util.Set<String> powerUpsUsedThisGame = new java.util.HashSet<>();
+
     /** ID of the winner (set at GAME_OVER) */
     private String winnerId;
 }

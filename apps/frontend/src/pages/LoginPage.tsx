@@ -21,7 +21,9 @@ export default function LoginPage() {
       sessionStorage.setItem('trivia_uid', data.userId)
       sessionStorage.setItem('trivia_first_name', data.firstName)
       sessionStorage.setItem('trivia_credits', data.credits.toString())
+      sessionStorage.setItem('trivia_stars', data.starsBalance.toString())
       useGameStore.getState().setCredits(data.credits)
+      useGameStore.getState().setStarsBalance(data.starsBalance)
       navigate('/lobby')
     } catch {
       setError('Authentication failed. Please try again.')
@@ -29,9 +31,6 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
-
-  // Retrieve current credits from session if available
-  const storedCredits = sessionStorage.getItem('trivia_credits')
 
   return (
     <div className="page-centered" style={{ gap: 32 }}>
@@ -78,40 +77,6 @@ export default function LoginPage() {
             )}
           </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginLeft: 'auto' }}>
-              {/* --- STARS BADGE --- */}
-              <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '6px', 
-                  background: 'rgba(255, 215, 0, 0.15)', 
-                  padding: '2px 10px', 
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255, 215, 0, 0.3)',
-                  width: 'fit-content'
-              }}>
-                <span style={{ fontSize: '12px' }}>⭐</span>
-                <span style={{ color: '#ffd700', fontSize: '12px', fontWeight: 600 }}>
-                  {user.starsBalance || 0} Stars
-                </span>
-              </div>
-              {/* --- CREDITS BADGE --- */}
-              {storedCredits && (
-                <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '6px', 
-                    background: 'rgba(74, 222, 128, 0.15)', 
-                    padding: '2px 10px', 
-                    borderRadius: '12px',
-                    border: '1px solid rgba(74, 222, 128, 0.3)',
-                    width: 'fit-content'
-                }}>
-                  <span style={{ fontSize: '12px' }}>🪙</span>
-                  <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: 600 }}>
-                    {storedCredits} Credits
-                  </span>
-                </div>
-              )}
             </div>
           {user.isPremium && (
             <span style={{ marginLeft: 'auto', fontSize: 18 }} title="Telegram Premium">⭐</span>

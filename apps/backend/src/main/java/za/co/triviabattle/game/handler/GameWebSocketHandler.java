@@ -167,6 +167,7 @@ public class GameWebSocketHandler implements WebSocketHandler {
                                         "state", room.getState(),
                                         "depositConfirmed", depositConfirmed,
                                         "starsBalance", stars,
+                                        "powerUpUsedThisGame", room.getPowerUpsUsedThisGame().contains(userId),
                                         "players", playerList
                                 ));
             
@@ -291,39 +292,51 @@ public class GameWebSocketHandler implements WebSocketHandler {
 
         int cost = switch (powerUpType) {
             case "INK_BLOT" -> 1;
-            case "FREEZE" -> 2;
             case "DOUBLE_POINTS" -> 3;
             default -> 0;
         };
 
-        return Mono.fromCallable(() -> userRepository.findById(Long.valueOf(userId)))
-                .flatMap(opt -> Mono.justOrEmpty(opt))
-                .flatMap(user -> {
-                    if (user.getStarsBalance() >= cost) {
-                        user.setStarsBalance(user.getStarsBalance() - cost);
-                        userRepository.save(user);
-
-                        log.info("[WS] PowerUp {} (cost: {}) used by {} targeting {} in room {}", powerUpType, cost, userId, targetId, roomId);
-
-                        // Broadcast the sabotage event to all players in the room
+        return roomService.getRoom(roomId)
+                .flatMap(room -> {
+                    if (room.getPowerUpsUsedThisGame().contains(userId)) {
+                        log.info("[WS] User {} already used a powerup in room {}", userId, roomId);
                         broadcast(sink, Map.of(
-                                "type", "SABOTAGE_EVENT",
-                                "sabotageType", powerUpType,
-                                "initiatorId", userId,
-                                "targetId", targetId != null ? targetId : ""
+                                "type", "ERROR",
+                                "userId", userId,
+                                "message", "You can only use 1 Power Up per game!"
                         ));
-
-                        // Register DOUBLE_POINTS in room state so scoring can apply 2x
-                        if ("DOUBLE_POINTS".equals(powerUpType)) {
-                            return roomService.getRoom(roomId).flatMap(room -> {
-                                room.getDoublePointsActive().add(userId);
-                                return roomService.saveRoom(room).then();
-                            });
-                        }
-                    } else {
-                        log.warn("[WS] User {} attempted to use powerup {} without enough stars", userId, powerUpType);
+                        return Mono.empty();
                     }
-                    return Mono.empty();
+
+                    return Mono.fromCallable(() -> userRepository.findById(Long.valueOf(userId)))
+                            .flatMap(opt -> Mono.justOrEmpty(opt))
+                            .flatMap(user -> {
+                                if (user.getStarsBalance() >= cost) {
+                                    user.setStarsBalance(user.getStarsBalance() - cost);
+                                    userRepository.save(user);
+
+                                    room.getPowerUpsUsedThisGame().add(userId);
+
+                                    log.info("[WS] PowerUp {} (cost: {}) used by {} targeting {} in room {}", powerUpType, cost, userId, targetId, roomId);
+
+                                    // Broadcast the sabotage event to all players in the room
+                                    broadcast(sink, Map.of(
+                                            "type", "SABOTAGE_EVENT",
+                                            "sabotageType", powerUpType,
+                                            "initiatorId", userId,
+                                            "targetId", targetId != null ? targetId : ""
+                                    ));
+
+                                    // Register DOUBLE_POINTS in room state so scoring can apply 2x
+                                    if ("DOUBLE_POINTS".equals(powerUpType)) {
+                                        room.getDoublePointsActive().add(userId);
+                                    }
+                                    return roomService.saveRoom(room).then();
+                                } else {
+                                    log.warn("[WS] User {} attempted to use powerup {} without enough stars", userId, powerUpType);
+                                }
+                                return Mono.empty();
+                            });
                 });
     }
 

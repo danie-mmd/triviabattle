@@ -58,7 +58,7 @@ app:
     question-count: 10
     question-time-seconds: 20
     intermission-seconds: 3
-    entry-fee-ton: 0.01
+    entry-fee-ton: 1.0
 
 # ── Scheduling ──────────────────────────────────────────────
 scheduling:

@@ -71,11 +71,18 @@ export default function GamePage() {
       localStorage.setItem(`trivia_pending_deposit_${roomId}`, 'true')
       if (!isCreditMatch) {
         console.log("[GamePage] Sending TON transaction...");
-        const escrowAddress = import.meta.env.VITE_ESCROW_CONTRACT_ADDRESS || '0QDZR_bK7KdVtUwIvPFLXUku710yNDKBs2CDe0agO_0G2GHs'
-        // 1. Send the TON transaction (may temporarily disconnect WS/kill app)
+        const escrowAddress = import.meta.env.VITE_ESCROW_CONTRACT_ADDRESS || 'EQAybJAQ1KdU1u3jHyC94EDsogooT4dyIjH8nTlFhsJH71Bu'
+        
+        // OP_DEPOSIT opcode is 0x4a25ce37
+        const body = 'te6cckEBAQEABgAACEolzjc+Udcj'; // Base64 for Deposit message cell
+        
         await tonConnectUI.sendTransaction({
           validUntil: Math.floor(Date.now() / 1000) + 60,
-          messages: [{ address: escrowAddress, amount: "10000000" }]
+          messages: [{ 
+            address: escrowAddress, 
+            amount: "1000000000", // 1.0 TON in nanoTON
+            payload: body
+          }]
         })
       } else {
         console.log("[GamePage] Credit match: skipping TON transaction");
@@ -134,6 +141,9 @@ export default function GamePage() {
               console.log('[WS] Setting players from GAME_STATE:', msg.players)
               setPlayers(msg.players)
             }
+            if (msg.powerUpUsedThisGame !== undefined) {
+              useGameStore.getState().setPowerUpUsedThisGame(msg.powerUpUsedThisGame)
+            }
             break
           case 'QUESTION':
             useGameStore.getState().clearSabotage()
@@ -149,6 +159,7 @@ export default function GamePage() {
           case 'SABOTAGE_EVENT':
             if (msg.sabotageType === 'DOUBLE_POINTS') {
               if (String(msg.initiatorId) === sessionStorage.getItem('trivia_uid')) {
+                useGameStore.getState().setPowerUpUsedThisGame(true)
                 triggerSabotage(msg.sabotageType)
               }
             } else {
@@ -156,6 +167,9 @@ export default function GamePage() {
               if (msg.targetId) {
                 if (String(msg.targetId) === sessionStorage.getItem('trivia_uid')) {
                   triggerSabotage(msg.sabotageType)
+                }
+                if (String(msg.initiatorId) === sessionStorage.getItem('trivia_uid')) {
+                  useGameStore.getState().setPowerUpUsedThisGame(true)
                 }
               } else {
                 // Fallback for old message structure
@@ -173,12 +187,19 @@ export default function GamePage() {
             break
           case 'LOBBY_REFUNDED':
             alert(msg.message || "Lobby refunded due to lack of players.")
+            useGameStore.getState().reset()
             navigate('/lobby')
             break
           case 'LOBBY_KICK':
             if (msg.userId === sessionStorage.getItem('trivia_uid')) {
               alert(msg.message)
+              useGameStore.getState().reset()
               navigate('/lobby')
+            }
+            break
+          case 'ERROR':
+            if (msg.userId === sessionStorage.getItem('trivia_uid')) {
+              alert(msg.message)
             }
             break
         }
@@ -288,12 +309,12 @@ export default function GamePage() {
                    Starting in {Math.max(0, Math.ceil(lobbyInfo.remainingTimeMs / 1000))}s...
                  </div>
                   <div style={{ fontSize: 14, color: 'var(--color-gold)', marginTop: 4 }}>
-                    Prize Pool: {(lobbyInfo.playerCount * (matchType === 'CREDITS' ? 1.0 : 0.01)).toFixed(2)} {matchType === 'CREDITS' ? 'Credits' : 'TON'}
+                    Prize Pool: {(lobbyInfo.playerCount * (matchType === 'CREDITS' ? 1.0 : 1.0)).toFixed(2)} {matchType === 'CREDITS' ? 'Credits' : 'TON'}
                   </div>
                </div>
             )}
             <p className="text-muted" style={{ marginBottom: 24 }}>
-              {matchType === 'CREDITS' ? 'Use 1 Credit to lock in your spot.' : 'Deposit your 0.01 TON entry fee to lock in your spot.'}
+              {matchType === 'CREDITS' ? 'Use 1 Credit to lock in your spot.' : 'Deposit your 1.0 TON entry fee to lock in your spot.'}
             </p>
             {hasConfirmed ? (
               <div style={{ color: 'var(--color-success)', fontWeight: 'bold' }}>
@@ -302,7 +323,7 @@ export default function GamePage() {
             ) : (
               <>
                 <button className="btn btn-primary" onClick={confirmDeposit} disabled={depositing} style={{ width: '100%', padding: 16, marginBottom: 12 }}>
-                  {depositing ? 'Processing...' : (matchType === 'CREDITS' ? 'Ready!' : 'Deposit 0.01 TON')}
+                  {depositing ? 'Processing...' : (matchType === 'CREDITS' ? 'Ready!' : 'Deposit 1.0 TON')}
                 </button>
                 <button className="btn btn-outline" onClick={handleCancelEntry} disabled={depositing} style={{ width: '100%' }}>
                   Back to Lobby

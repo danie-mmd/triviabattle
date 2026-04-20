@@ -9,6 +9,8 @@ import reactor.core.publisher.Mono;
 
 import java.util.Map;
 
+import za.co.triviabattle.users.UserRepository;
+
 /**
  * PaymentController
  *
@@ -26,6 +28,7 @@ public class PaymentController {
     private String botToken;
 
     private final WebClient.Builder webClientBuilder;
+    private final UserRepository userRepository;
 
     // ── Stars: create invoice ─────────────────────────────────────────────────
 
@@ -74,9 +77,13 @@ public class PaymentController {
             @SuppressWarnings("unchecked")
             Map<String, Object> pcq = (Map<String, Object>) update.get("pre_checkout_query");
             String queryId = (String) pcq.get("id");
-            // Always approve for now; add inventory checks here
-            return answerPreCheckoutQuery(queryId, true, null)
-                    .thenReturn(Map.of("ok", true));
+            // Always approve for now; answer directly via webhook JSON
+            log.info("[Payment] Answering pre_checkout_query {}", queryId);
+            return Mono.just(Map.of(
+                    "method", "answerPreCheckoutQuery",
+                    "pre_checkout_query_id", queryId,
+                    "ok", true
+            ));
         }
 
         if (update.containsKey("message")) {
@@ -86,27 +93,23 @@ public class PaymentController {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> payment = (Map<String, Object>) message.get("successful_payment");
                 String productType = (String) payment.get("invoice_payload");
-                String userId = String.valueOf(
-                        ((Map<?, ?>) update.get("message")).get("from"));
-                log.info("[Payment] Stars payment received: product={} user={}", productType, userId);
-                // TODO: credit the power-up to the user in MySQL
+                @SuppressWarnings("unchecked")
+                Map<String, Object> from = (Map<String, Object>) message.get("from");
+                Number userIdNum = (Number) from.get("id");
+                log.info("[Payment] Stars payment received: product={} user={}", productType, userIdNum);
+
+                if (userIdNum != null) {
+                    Product product = Product.fromType(productType);
+                    userRepository.findById(userIdNum.longValue()).ifPresent(user -> {
+                        user.setStarsBalance(user.getStarsBalance() + product.starAmount());
+                        userRepository.save(user);
+                        log.info("[Payment] Credited {} stars to user {}", product.starAmount(), userIdNum);
+                    });
+                }
             }
         }
 
         return Mono.just(Map.of("ok", true));
-    }
-
-    private Mono<Void> answerPreCheckoutQuery(String queryId, boolean ok, String errorMessage) {
-        Map<String, Object> body = ok
-                ? Map.of("pre_checkout_query_id", queryId, "ok", true)
-                : Map.of("pre_checkout_query_id", queryId, "ok", false, "error_message", errorMessage);
-
-        return webClientBuilder.build()
-                .post()
-                .uri("https://api.telegram.org/bot{token}/answerPreCheckoutQuery", botToken)
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(Void.class);
     }
 
     // ── Inner types ───────────────────────────────────────────────────────────
@@ -114,9 +117,10 @@ public class PaymentController {
     record TelegramApiResponse(boolean ok, String result) {}
 
     enum Product {
-        INK_BLOT_PACK("Ink Blot ×3", "Sabotage 3 opponents' screens", 25),
-        FREEZE_PACK   ("Freeze ×2",   "Stop opponents' timers",        30),
-        DOUBLE_PACK   ("2× Points ×2","Double your score this round",  40);
+        STARS_1("1 Star", "Test pack of stars", 1),
+        STARS_25("25 Stars", "Small pack of stars", 25),
+        STARS_50("50 Stars", "Medium pack of stars", 50),
+        STARS_100("100 Stars", "Large pack of stars", 100);
 
         private final String title;
         private final String description;
@@ -134,10 +138,11 @@ public class PaymentController {
 
         static Product fromType(String type) {
             return switch (type) {
-                case "INK_BLOT_PACK" -> INK_BLOT_PACK;
-                case "FREEZE_PACK"   -> FREEZE_PACK;
-                case "DOUBLE_PACK"   -> DOUBLE_PACK;
-                default              -> throw new IllegalArgumentException("Unknown product: " + type);
+                case "STARS_1"  -> STARS_1;
+                case "STARS_25" -> STARS_25;
+                case "STARS_50" -> STARS_50;
+                case "STARS_100" -> STARS_100;
+                default         -> throw new IllegalArgumentException("Unknown product: " + type);
             };
         }
     }
