@@ -18,6 +18,7 @@ export default function LobbyPage() {
   const [loading, setLoading] = useState(false)
   const credits = useGameStore(s => s.credits)
   const setCredits = useGameStore(s => s.setCredits)
+  const starsBalance = useGameStore(s => s.starsBalance)
 
   const wallet = useTonWallet()
 
@@ -38,6 +39,10 @@ export default function LobbyPage() {
         if (data.credits !== undefined) {
           setCredits(data.credits)
           sessionStorage.setItem('trivia_credits', data.credits.toString())
+        }
+        if (data.starsBalance !== undefined) {
+          useGameStore.getState().setStarsBalance(data.starsBalance)
+          sessionStorage.setItem('trivia_stars', data.starsBalance.toString())
         }
         if (data.roomId) {
           clearInterval(interval)
@@ -72,7 +77,8 @@ export default function LobbyPage() {
     setPosition(0)
   }
 
-  const displayCredits = credits !== null ? credits : (sessionStorage.getItem('trivia_credits') || '0')
+  const displayCredits = credits !== -1 ? credits : (sessionStorage.getItem('trivia_credits') || '0')
+  const displayStars = starsBalance !== -1 ? starsBalance : (sessionStorage.getItem('trivia_stars') || '0')
 
   return (
     <div className="page" style={{ gap: 24, paddingTop: 32 }}>
@@ -91,20 +97,25 @@ export default function LobbyPage() {
           </button>
           <h1 style={{ fontSize: 28, fontWeight: 800 }}>🏟️ <span className="text-gradient">Lobby</span></h1>
         </div>
-        {(matchType === 'CREDITS' || (sessionStorage.getItem('trivia_credits') !== null)) && (
-          <div className="glass" style={{ padding: '6px 12px', borderRadius: 16, fontSize: 14, fontWeight: 700, border: '1px solid var(--color-gold)' }}>
-            🪙 {displayCredits} Credits
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div className="glass" style={{ padding: '6px 12px', borderRadius: 16, fontSize: 14, fontWeight: 700, border: '1px solid rgba(255, 215, 0, 0.3)', background: 'rgba(255, 215, 0, 0.15)', color: '#ffd700' }}>
+            ⭐ {displayStars} Stars
           </div>
-        )}
+          {(matchType === 'CREDITS' || (sessionStorage.getItem('trivia_credits') !== null)) && (
+            <div className="glass" style={{ padding: '6px 12px', borderRadius: 16, fontSize: 14, fontWeight: 700, border: '1px solid rgba(74, 222, 128, 0.3)', background: 'rgba(74, 222, 128, 0.15)', color: '#4ade80' }}>
+              🪙 {displayCredits} Credits
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Prize pool info */}
       <div className="card" style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 40, fontWeight: 900, color: 'var(--color-gold)' }}>
-          {matchType === 'CREDITS' ? `Up to 4.0 Credits` : `Up to 0.04 TON`}
+          {matchType === 'CREDITS' ? `Up to 4.0 Credits` : `Up to 4.0 TON`}
         </div>
         <div className="text-muted" style={{ marginTop: 4 }}>
-          Dynamic pool · 2-5 players · {matchType === 'CREDITS' ? '1 Credit' : '0.01 TON'} entry
+          Dynamic pool · 2-5 players · {matchType === 'CREDITS' ? '1 Credit' : '1.0 TON'} entry
         </div>
       </div>
 

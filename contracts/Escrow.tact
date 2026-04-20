@@ -30,6 +30,9 @@ message Payout {
 message Refund {}
 
 message WithdrawDust {}
+message Reset {
+    newRoomId: String;
+}
 
 // ── Contract ──────────────────────────────────────────────────────────────────
 
@@ -139,6 +142,19 @@ contract Escrow with Deployable {
         });
     }
 
+    // ── Reset (re-use contract for new room) ──────────────────────────────────
+
+    receive(msg: Reset) {
+        require(sender() == self.authorizedBackend, "Unauthorized");
+        
+        self.deposits = emptyMap();
+        self.depositCount = 0;
+        self.settled = false;
+        self.roomId = msg.newRoomId;
+
+        emit("Reset".asComment());
+    }
+
     // ── Getters ───────────────────────────────────────────────────────────────
 
     get fun prizePool(): Int {
@@ -156,6 +172,10 @@ contract Escrow with Deployable {
     get fun getDeposit(addr: Address): Int {
         let amount: Int? = self.deposits.get(addr);
         return amount != null ? amount!! : 0;
+    }
+
+    get fun authorizedBackend(): Address {
+        return self.authorizedBackend;
     }
 
     get fun roomId(): String {

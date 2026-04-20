@@ -26,6 +26,8 @@ export default function ResultsPage() {
   }
 
   const sortedScores = Object.entries(result.scores).sort(([, a], [, b]) => b - a)
+  const isCreditMatch = result.creditMatch || result.isCreditMatch || matchType === 'CREDITS';
+  const calculatedCreditPrize = Math.round(Object.keys(result.scores).length * 0.8);
 
   return (
     <div className="page-centered" style={{ gap: 24 }}>
@@ -44,7 +46,7 @@ export default function ResultsPage() {
       {isWinner && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
           style={{ fontSize: 24, color: 'var(--color-gold)', fontWeight: 800 }}>
-          +{matchType === 'CREDITS' ? '4.0 Credits' : `${result.prizePool.toFixed(2)} TON`}
+          +{isCreditMatch ? `${calculatedCreditPrize} Credits` : `${result.prizePool.toFixed(2)} TON`}
         </motion.div>
       )}
 

@@ -19,6 +19,7 @@ import za.co.triviabattle.game.model.Room;
 import za.co.triviabattle.game.model.Tournament;
 import za.co.triviabattle.game.repository.TournamentRepository;
 import za.co.triviabattle.game.handler.GameWebSocketHandler;
+import za.co.triviabattle.payment.TonService;
 
 /**
  * MatchmakingService
@@ -43,6 +44,7 @@ public class MatchmakingService {
     private final ReactiveRedisTemplate<String, Object> redis;
     private final RoomService roomService;
     private final GameService gameService;
+    private final TonService tonService;
     private final TournamentRepository tournamentRepository;
     private final GameWebSocketHandler webSocketHandler;
 
@@ -97,10 +99,21 @@ public class MatchmakingService {
                             room.getDepositsConfirmed().remove(userId);
                             
                             return roomService.saveRoom(room)
-                                .flatMap(ok -> hasPaid ? gameService.refundPlayerCredit(userId, room.isCreditMatch()) : Mono.empty());
+                                .flatMap(ok -> {
+                                    if (hasPaid) {
+                                        if (room.isCreditMatch()) {
+                                            return gameService.refundPlayerCredit(userId, true);
+                                        } else {
+                                            log.info("[Matchmaking] User {} left queue after TON deposit. Triggering lobby refund for room {}", userId, room.getRoomId());
+                                            return gameService.refundLobby(room); // Refund the whole lobby if someone leaves mid-deposit
+                                        }
+                                    }
+                                    return Mono.empty();
+                                });
                         })
                     )
                 )
+
                 .then(redis.delete("user:room:" + userId))
                 .then();
     }
@@ -131,6 +144,11 @@ public class MatchmakingService {
                     
                     log.info("[Matchmaking] FORMING {} ROOM {} with {} players", isCreditMatch ? "CREDIT" : "TON", roomId, userIds.size());
                     
+                    if (!isCreditMatch) {
+                        log.info("[Matchmaking] Triggering ESCROW RESET in background for room {}", roomId);
+                        tonService.resetEscrow(roomId).subscribe();
+                    }
+
                     return redis.opsForSet().add(ACTIVE_LOBBIES_SET, roomId)
                             .thenMany(Flux.fromIterable(userIds))
                             .flatMap(uid -> redis.opsForValue().set("user:room:" + uid, roomId, Duration.ofMinutes(10)))
@@ -180,20 +198,61 @@ public class MatchmakingService {
                 .then(harvestQueue(QUEUE_CREDITS, true));
     }
 
-    private Mono<Void> harvestQueue(String queueKey, boolean isCredit) {
-        return redis.opsForList().size(queueKey)
-                .flatMap(size -> {
-                    if (size >= roomSize) {
-                        log.info("[Matchmaking] Queue {} has {} players. Harvesting {}...", queueKey, size, roomSize);
-                        return Flux.range(0, (int) roomSize)
-                                .flatMap(i -> redis.opsForList().leftPop(queueKey).map(Object::toString))
-                                .collectList()
-                                .flatMap(userIds -> createNewRoomFromQueue(userIds, isCredit))
-                                .then();
-                    }
-                    return Mono.empty();
-                });
+ 
+private Mono<Void> harvestQueue(String queueKey, boolean isCredit) {
+    return redis.opsForList().size(queueKey)
+        .flatMap(size -> {
+            if (size <= 0) return Mono.empty();
+
+            // Process all pending players in the queue
+            return Flux.range(0, size.intValue())
+                .flatMap(i -> redis.opsForList().leftPop(queueKey).map(Object::toString))
+                .flatMap(userId -> 
+                    redis.opsForSet().members(ACTIVE_LOBBIES_SET)
+                        .map(Object::toString)
+                        .flatMap(roomService::getRoom)
+                        .filter(room -> room.isCreditMatch() == isCredit 
+                                && room.getState() == GameState.DEPOSIT_PHASE 
+                                && room.getPlayerIds().size() < roomSize)
+                        .next() 
+                        .flatMap(existingRoom -> {
+                            log.info("[Matchmaking] Adding player {} to existing lobby {}", userId, existingRoom.getRoomId());
+                            return addPlayerToExistingRoom(userId, existingRoom);
+                        })
+                        .switchIfEmpty(Mono.defer(() -> {
+                            log.info("[Matchmaking] No existing lobby for {}, creating new one.", userId);
+                            return createNewRoomFromQueue(Collections.singletonList(userId), isCredit).then();
+                        }))
+                )
+                .then();
+        })
+        .then();
+}
+
+/**
+ * Helper to add a user to a room already in the DEPOSIT_PHASE.
+ */
+private Mono<Void> addPlayerToExistingRoom(String userId, Room room) {
+    if (!room.getPlayerIds().contains(userId)) {
+        room.getPlayerIds().add(userId);
     }
+    
+    return redis.opsForValue().get(USER_NAME_PREFIX + userId)
+            .map(Object::toString)
+            .defaultIfEmpty("Player")
+            .flatMap(name -> {
+                room.getPlayerNames().put(userId, name);
+                return redis.opsForValue().set("user:room:" + userId, room.getRoomId(), Duration.ofHours(1));
+            })
+            .then(roomService.saveRoom(room))
+            .doOnSuccess(v -> {
+                Map<String, Object> update = new HashMap<>();
+                update.put("type", "LOBBY_UPDATE");
+                update.put("playerCount", room.getPlayerIds().size());
+                webSocketHandler.broadcastToRoom(room.getRoomId(), update);
+            })
+            .then();
+}
 
     // ── Scheduled room formation ──────────────────────────────────────────────
 
@@ -252,8 +311,7 @@ public class MatchmakingService {
                 .flatMap(uid -> redis.delete("user:room:" + uid))
                 .then(Mono.defer(() -> {
                     int count = room.getPlayerIds().size();
-                    
-                    if (count >= 2) {
+                    if (count >= 1) {
                         log.info("[Matchmaking] STARTING room {} with {} paid players", room.getRoomId(), count);
                         Tournament tournament = Tournament.builder()
                                 .roomId(room.getRoomId())
@@ -268,9 +326,6 @@ public class MatchmakingService {
                                     return roomService.saveRoom(room)
                                             .then(gameService.startMatch(room));
                                 });
-                    } else if (count == 1) {
-                        log.info("[Matchmaking] REFUNDING room {} (only 1 player)", room.getRoomId());
-                        return gameService.refundLobby(room);
                     } else {
                         return Mono.empty();
                     }

@@ -64,6 +64,7 @@ export interface QueueStatusResponse {
   roomId?: string
   roomSize?: number
   credits?: number
+  starsBalance?: number
   queuePlayers?: { userId: string, name: string }[]
 }
 
@@ -93,6 +94,8 @@ export interface GameResult {
   scores: Record<string, number>
   playerNames: Record<string, string>
   prizePool: number
+  creditMatch?: boolean
+  isCreditMatch?: boolean
 }
 
 export const gameApi = {

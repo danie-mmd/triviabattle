@@ -11,7 +11,6 @@ interface PowerUp {
 
 const POWER_UPS: PowerUp[] = [
   { type: 'INK_BLOT', icon: '🖋️', label: 'Ink Blot', cost: 1, description: 'Obscure an opponent\'s screen for 5s' },
-  { type: 'FREEZE', icon: '🧊', label: 'Freeze', cost: 2, description: 'Freeze 1 opponent\'s timer for 3s' },
   { type: 'DOUBLE_POINTS', icon: '⚡', label: '2× Points', cost: 3, description: 'Double your points this round' },
 ]
 
@@ -22,7 +21,7 @@ interface PowerUpBarProps {
 import { useState } from 'react'
 
 export default function PowerUpBar({ onUsePowerUp }: PowerUpBarProps) {
-  const { starsBalance, players } = useGameStore()
+  const { starsBalance, players, powerUpUsedThisGame } = useGameStore()
   const [activeSelectType, setActiveSelectType] = useState<string | null>(null)
   const [insufficientType, setInsufficientType] = useState<string | null>(null)
 
@@ -32,10 +31,12 @@ export default function PowerUpBar({ onUsePowerUp }: PowerUpBarProps) {
   const handlePress = (type: string) => {
     const p = POWER_UPS.find(u => u.type === type)
     console.log('[PowerUp] handlePress', type, 'starsBalance:', starsBalance, 'cost:', p?.cost, 'enemies:', enemies.length)
-    if (!p || starsBalance < p.cost) {
-      console.warn('[PowerUp] blocked – not enough stars or unknown type')
-      setInsufficientType(type)
-      setTimeout(() => setInsufficientType(null), 2000)
+    if (!p || starsBalance < p.cost || powerUpUsedThisGame) {
+      console.warn('[PowerUp] blocked – not enough stars, unknown type, or already used')
+      if (!powerUpUsedThisGame) {
+        setInsufficientType(type)
+        setTimeout(() => setInsufficientType(null), 2000)
+      }
       return;
     }
 
@@ -83,7 +84,7 @@ export default function PowerUpBar({ onUsePowerUp }: PowerUpBarProps) {
         <span style={{ fontSize: 12 }}>{starsBalance < 0 ? '…' : starsBalance}</span>
       </div>
       {POWER_UPS.map(({ type, icon, label, description, cost }) => {
-        const available = starsBalance >= cost
+        const available = starsBalance >= cost && !powerUpUsedThisGame
 
         return (
           <motion.button
@@ -107,7 +108,7 @@ export default function PowerUpBar({ onUsePowerUp }: PowerUpBarProps) {
               flexDirection: 'column',
               alignItems: 'center',
               gap: 4,
-              opacity: available ? 1 : 0.35,
+              opacity: available ? 1 : (powerUpUsedThisGame ? 0.15 : 0.35),
               transition: 'var(--transition)',
               position: 'relative',
             }}

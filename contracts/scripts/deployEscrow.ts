@@ -1,11 +1,13 @@
 import { toNano, Address } from '@ton/core';
-import { Escrow } from '../build/Escrow/tact_Escrow';
+import { Escrow } from '../wrappers/Escrow';
 import { NetworkProvider } from '@ton/blueprint';
 
 export async function run(provider: NetworkProvider) {
     // ⚠️ Replace with the wallet address shown in TonKeeper (testnet mode)
     // This is your wallet that controls payouts - the "authorized backend"
-    const authorizedBackend = Address.parse("0QDZR_bK7KdVtUwIvPFLXUku710yNDKBs2CDe0agO_0G2GHs");
+    const authorizedBackend = Address.parse("EQCgZK_3KBYQy5r3qTpMC2Q_qFI_9gZ71chvqrX5BeVvDcoA");
+
+
     const roomId = "test-room-001";
     const entryFee = toNano('0.01'); // 0.01 TON in nanoTON
 

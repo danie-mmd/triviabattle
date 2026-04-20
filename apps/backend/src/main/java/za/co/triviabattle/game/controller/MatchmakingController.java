@@ -8,6 +8,7 @@ import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 import za.co.triviabattle.game.service.MatchmakingService;
 
+import za.co.triviabattle.users.User;
 import za.co.triviabattle.users.UserRepository;
 
 import java.security.Principal;
@@ -54,15 +55,15 @@ public class MatchmakingController {
         String userId = principal.getName();
         log.info("[Matchmaking] Status check requested for userId: {}", userId);
         
-        Mono<Integer> creditMono = Mono.just(0);
+        Mono<User> userMono = Mono.empty();
         if (userId != null && userId.matches("\\d+")) {
-            creditMono = Mono.fromCallable(() -> userRepository.findById(Long.valueOf(userId)))
-                    .flatMap(opt -> Mono.justOrEmpty(opt))
-                    .map(user -> user.getCredits() != null ? user.getCredits() : 0)
-                    .defaultIfEmpty(0);
+            userMono = Mono.fromCallable(() -> userRepository.findById(Long.valueOf(userId)))
+                    .flatMap(opt -> Mono.justOrEmpty(opt));
         }
 
-        return creditMono.flatMap(credits -> {
+        return userMono.defaultIfEmpty(new User()).flatMap(user -> {
+                    int credits = user.getCredits() != null ? user.getCredits() : 0;
+                    int stars = user.getStarsBalance();
                     return matchmakingService.getUserRoom(userId)
                             .doOnNext(room -> log.info("[Matchmaking] Status check for {}: Match Found in room {}", userId, room))
                             .map(roomId -> {
@@ -72,6 +73,7 @@ public class MatchmakingController {
                                 resp.put("roomId", roomId);
                                 resp.put("roomSize", matchmakingService.getRoomSize());
                                 resp.put("credits", credits);
+                                resp.put("starsBalance", stars);
                                 return resp;
                             })
                             .switchIfEmpty(Mono.defer(() -> Mono.zip(
@@ -82,6 +84,7 @@ public class MatchmakingController {
                                 List<Map<String, String>> players = (List<Map<String, String>>) tuple.getT2();
                                 Map<String, Object> response = new java.util.HashMap<>();
                                 response.put("credits", credits);
+                                response.put("starsBalance", stars);
                                 if (pos < 0) {
                                     response.put("inQueue", false);
                                     response.put("matchReady", false);

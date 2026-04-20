@@ -32,4 +32,7 @@ public class GameResult {
     private Map<String, String> playerNames;
 
     private double prizePool;
+
+    @Column(name = "is_credit_match")
+    private boolean isCreditMatch;
 }

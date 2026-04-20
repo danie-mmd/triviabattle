@@ -1,6 +1,5 @@
 package za.co.triviabattle.game.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
@@ -64,7 +63,7 @@ public class GameService {
     @Value("${app.game.question-time-seconds:20}")
     private int questionTime;
 
-    @Value("${app.game.entry-fee-ton:0.01}")
+    @Value("${app.game.entry-fee-ton:1.0}")
     private double entryFee;
 
     @Value("${app.game.intermission-seconds:5}")
@@ -83,15 +82,21 @@ public class GameService {
                     List<Question> questions = new ArrayList<>();
                     
                     // Difficulty Curve: 4 Easy, 4 Medium, 2 Hard
-                    questions.addAll(fetchQuestionsForDifficulty("easy", 4, answeredIds, room.isCreditMatch()));
-                    questions.addAll(fetchQuestionsForDifficulty("medium", 4, answeredIds, room.isCreditMatch()));
-                    questions.addAll(fetchQuestionsForDifficulty("hard", 2, answeredIds, room.isCreditMatch()));
+                    questions.addAll(fetchQuestionsForDifficulty("easy", 4, answeredIds));
+                    questions.addAll(fetchQuestionsForDifficulty("medium", 4, answeredIds));
+                    questions.addAll(fetchQuestionsForDifficulty("hard", 2, answeredIds));
                     
                     if (questions.size() < questionCount) {
-                        log.warn("[GameService] Only found {}/{} questions. Filling up with randoms...", questions.size(), questionCount);
+                        log.warn("[GameService] Only found {}/{} difficulty questions. Filling up with randoms...", questions.size(), questionCount);
                         int remaining = questionCount - questions.size();
                         questions.addAll(questionRepository.findByActiveTrue(PageRequest.of(0, remaining)).getContent());
                     }
+
+                    // Detailed logging for verification
+                    String questionLog = questions.stream()
+                        .map(q -> String.format("[%d: %s - %.30s...]", q.getId(), q.getDifficulty(), q.getQuestionText()))
+                        .collect(Collectors.joining(", "));
+                    log.info("[GameService] FINAL 4/4/2 Questions for room {}: {}", room.getRoomId(), questionLog);
 
                     return questions;
                 })
@@ -134,21 +139,21 @@ public class GameService {
                 .then();
     }
 
-    private List<Question> fetchQuestionsForDifficulty(String difficulty, int count, java.util.Collection<Long> excludedIds, boolean isCreditMatch) {
-        log.info("[GameService] Fetching {} {} questions (50/50 Mix)...", count, difficulty);
+    private List<Question> fetchQuestionsForDifficulty(String difficulty, int count, java.util.Collection<Long> excludedIds) {
+        log.info("[GameService] Fetching {} {} questions (50/50 SA/Global Mix)...", count, difficulty);
         List<Question> result = new ArrayList<>();
         
         int saToFetch = count / 2;
         int globalToFetch = count - saToFetch;
 
         // 1. Fetch South Africa questions
-        List<Question> saQuestions = isCreditMatch || excludedIds.isEmpty() ?
+        List<Question> saQuestions = excludedIds.isEmpty() ?
                 questionRepository.findRandomByDifficultyAndRegionNative(difficulty, "south_africa", saToFetch) :
                 questionRepository.findRandomExcludingByDifficultyAndRegionNative(difficulty, "south_africa", excludedIds, saToFetch);
         result.addAll(saQuestions);
         
         // 2. Fetch Global questions
-        List<Question> globalQuestions = isCreditMatch || excludedIds.isEmpty() ?
+        List<Question> globalQuestions = excludedIds.isEmpty() ?
                 questionRepository.findRandomByDifficultyAndRegionNative(difficulty, "global", globalToFetch) :
                 questionRepository.findRandomExcludingByDifficultyAndRegionNative(difficulty, "global", excludedIds, globalToFetch);
         result.addAll(globalQuestions);
@@ -292,6 +297,7 @@ public class GameService {
                 .scores(room.getScores())
                 .playerNames(room.getPlayerNames())
                 .prizePool(winnerPrize)
+                .isCreditMatch(room.isCreditMatch())
                 .build();
 
         Mono<Void> processPayout = Mono.empty();
@@ -313,8 +319,10 @@ public class GameService {
                     }).then();
                 });
         } else if (winnerId != null) {
-            log.info("[Payout] Triggering TON payout for winner {} in room {}", winnerId, room.getRoomId());
-            processPayout = tonService.payoutToWinner(room.getRoomId(), winnerId, winnerPrize);
+            double serviceFee = totalPool * 0.2;
+            log.info("[Payout] Triggering TON payout for room {}: winner {} gets {}, fee {}", 
+                    room.getRoomId(), winnerId, winnerPrize, serviceFee);
+            processPayout = tonService.payoutToWinner(room.getRoomId(), winnerId, winnerPrize, serviceFee);
         } else {
             log.warn("[Game] No winner for room {}. Skipping payout.", room.getRoomId());
         }
@@ -357,16 +365,26 @@ public class GameService {
         // Notify the player
         webSocketHandler.broadcastToRoom(room.getRoomId(), Map.of(
                 "type", "LOBBY_REFUNDED",
-                "message", String.format("Not enough players. Your 1 %s has been refunded.", room.isCreditMatch() ? "Credit" : "TON"),
+                "message", room.isCreditMatch() ? 
+                        "Not enough players. Your 1 Credit has been refunded." : 
+                        String.format("Not enough players. Your %.2f TON has been refunded.", entryFee),
                 "roomId", room.getRoomId()
         ));
 
         // Cleanup: Clear user-to-room mappings
-        return Flux.fromIterable(room.getPlayerIds())
+        Mono<Void> cleanup = Flux.fromIterable(room.getPlayerIds())
                 .flatMap(uid -> {
                     log.info("[Refund] Clearing mapping for {}", uid);
                     return roomService.clearUserRoomMapping(uid).then(refundPlayerCredit(uid, room.isCreditMatch()));
                 })
                 .then();
+
+        if (!room.isCreditMatch()) {
+            log.info("[Refund] Triggering TON refund for room {}", room.getRoomId());
+            return tonService.refundPrizePool(room.getRoomId()).then(cleanup);
+        }
+
+        return cleanup;
     }
 }
+
