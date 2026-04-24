@@ -1,58 +1,46 @@
-# TriviaBattle Profit Analysis & Tokenomics
+# TriviaBattle — Profit Analysis & Tokenomics 💰
 
-For these calculations, we assume a baseline fiat value of **1 TON = $5.00**. 
-
-## 1. The Per-Game Revenue & Gas Costs
-The entry fee is **1.0 TON** ($5.00). The house takes a **20% Service Fee** from the total pool.
-However, we must also deduct the static house overhead (Gas fees for automated resets and payouts) which average about **~0.10 TON ($0.50)** total per game.
-
-Here is the precise net profit breakdown per game:
-
-*   **2-Player Game (Pool: 2 TON | $10.00)**
-    *   Gross House Cut (20%): 0.40 TON ($2.00)
-    *   Minus Gas Overhead: -0.10 TON (-$0.50)
-    *   **Net Profit:** **0.30 TON ($1.50)** 
-    *   *Real-World Margin: 15%*
-
-*   **3-Player Game (Pool: 3 TON | $15.00)**
-    *   Gross House Cut (20%): 0.60 TON ($3.00)
-    *   Minus Gas Overhead: -0.10 TON (-$0.50)
-    *   **Net Profit:** **0.50 TON ($2.50)**
-    *   *Real-World Margin: 16.6%*
-
-*   **4-Player Game (Pool: 4 TON | $20.00)**
-    *   Gross House Cut (20%): 0.80 TON ($4.00)
-    *   Minus Gas Overhead: -0.10 TON (-$0.50)
-    *   **Net Profit:** **0.70 TON ($3.50)**
-    *   *Real-World Margin: 17.5%*
-
-*   **5-Player Game (Pool: 5 TON | $25.00)**
-    *   Gross House Cut (20%): 1.00 TON ($5.00)
-    *   Minus Gas Overhead: -0.10 TON (-$0.50)
-    *   **Net Profit:** **0.90 TON ($4.50)**
-    *   *Real-World Margin: 18%*
+Assumptions: **1 TON = $5.00** · **Entry Fee = 1.0 TON** · **House Cut = 20%** · **Gas Overhead ≈ 0.10 TON/game**
 
 ---
 
-## 2. Breaking Even on a $55/mo Server
-To cover a **$55 per month base base Infrastructure Cost**, here is exactly how many games you need to successfully run per month (assuming an average TON price of $5):
+## Per-Game Revenue Breakdown
 
-*   **If only 2-Player Games:** 37 games/month *(~1.2 games per day)*
-*   **If only 3-Player Games:** 22 games/month *(~0.7 games per day)*
-*   **If only 4-Player Games:** 16 games/month *(~1 game every 2 days)*
-*   **If only 5-Player Games:** 13 games/month *(~1 game every 2-3 days)*
+| Players | Pool (TON) | Pool (USD) | Gross Cut (20%) | Gas Overhead | **Net Profit** | Margin |
+|---------|-----------|-----------|----------------|-------------|----------------|--------|
+| 2 | 2.0 TON | $10.00 | 0.40 TON | -0.10 TON | **0.30 TON ($1.50)** | 15.0% |
+| 3 | 3.0 TON | $15.00 | 0.60 TON | -0.10 TON | **0.50 TON ($2.50)** | 16.6% |
+| 4 | 4.0 TON | $20.00 | 0.80 TON | -0.10 TON | **0.70 TON ($3.50)** | 17.5% |
+| 5 | 5.0 TON | $25.00 | 1.00 TON | -0.10 TON | **0.90 TON ($4.50)** | 18.0% |
+
+> Gas overhead covers one Escrow reset (~0.05 TON) and one payout transaction (~0.05 TON) per game.
 
 ---
 
-## 3. Scaling & Pure Profit
-Once those first ~25 average games of the month cover the server footprint, everything else is pure, scalable profit. 
+## Break-Even on $55/mo Infrastructure
 
-If your Telegram Mini App gains traction and you average just **5 full games (5 players) per day**:
-*   Monthly Games: 150
-*   Net Monthly Profit: **135 TON (~$675.00)** 
+To cover a flat **$55/month** server cost (GCP `e2-standard-2` VM):
 
-If it goes viral and scales to **100 full games a day**:
-*   Monthly Games: 3,000
-*   Net Monthly Profit: **2,700 TON (~$13,500.00)** 
+| Game Mix | Games Needed | Daily Rate |
+|---|---|---|
+| 2-player only | 37 games/mo | ~1.2/day |
+| 3-player only | 22 games/mo | ~0.7/day |
+| 4-player only | 16 games/mo | ~1 every 2 days |
+| 5-player only | 13 games/mo | ~1 every 2–3 days |
 
-Because the Java backend VM operates at a flat fee and the Node.js payouts cost virtually nothing under a serverless scale-to-zero model, your server costs will hardly budge as you scale from $600 to $13,000 in monthly revenue. The fixed 20% model provides an extremely lucrative and secure business foundation.
+> With a realistic mix of player counts, **~20–25 completed games per month** covers the server entirely.
+
+---
+
+## Scaling & Pure Profit
+
+Once break-even is reached, every additional game is **100% margin profit** since server costs are flat.
+
+| Daily Games (5-player) | Monthly Games | Monthly Net Profit | USD Equivalent |
+|---|---|---|---|
+| 5 | 150 | 135 TON | ~$675 |
+| 20 | 600 | 540 TON | ~$2,700 |
+| 50 | 1,500 | 1,350 TON | ~$6,750 |
+| 100 | 3,000 | 2,700 TON | ~$13,500 |
+
+> Because the Java backend runs at a fixed VM cost and the Node.js payout service runs serverless at scale-to-zero, infrastructure costs **do not scale with revenue**. The 20% house fee provides a stable, highly scalable business model.
