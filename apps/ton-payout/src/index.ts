@@ -55,7 +55,17 @@ app.post('/api/reset', async (req, res) => {
         return res.json({ success: true, message: 'Reset triggered successfully', txHash });
     } catch (error: any) {
         console.error(`[Ton Payout] Error triggering reset:`, error.message);
-        return res.status(500).json({ error: 'Failed to execute reset' });
+    }
+});
+
+app.post('/api/withdraw-dust', async (req, res) => {
+    try {
+        const { executeWithdrawDust } = await import('./payout');
+        const txHash = await executeWithdrawDust();
+        return res.json({ success: true, message: 'Dust withdrawal triggered', txHash });
+    } catch (error: any) {
+        console.error(`[Ton Payout] Error withdrawing dust:`, error.message);
+        return res.status(500).json({ error: 'Failed to withdraw dust' });
     }
 });
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { gameApi } from '@/services/api'
 import { useGameStore } from '@/store/gameStore'
 
@@ -9,10 +9,20 @@ export default function ResultsPage() {
   const { roomId } = useParams<{ roomId: string }>()
   const navigate = useNavigate()
   const [result, setResult] = useState<Awaited<ReturnType<typeof gameApi.getResult>>['data'] | null>(null)
+  const [processingPayout, setProcessingPayout] = useState(false)
 
   useEffect(() => {
-    gameApi.getResult(roomId!).then(({ data }) => setResult(data))
-  }, [roomId])
+    gameApi.getResult(roomId!).then(({ data }) => {
+      setResult(data)
+      const myId = sessionStorage.getItem('trivia_uid') ?? ''
+      const isWinner = data.winnerId === myId
+      const isCredit = data.creditMatch || data.isCreditMatch || matchType === 'CREDITS'
+      if (isWinner && !isCredit) {
+        setProcessingPayout(true)
+        setTimeout(() => setProcessingPayout(false), 20000)
+      }
+    })
+  }, [roomId, matchType])
 
   const myId = sessionStorage.getItem('trivia_uid') ?? ''
   const isWinner = result?.winnerId === myId
@@ -30,7 +40,27 @@ export default function ResultsPage() {
   const calculatedCreditPrize = Math.round(Object.keys(result.scores).length * 0.8);
 
   return (
-    <div className="page-centered" style={{ gap: 24 }}>
+    <div className="page-centered" style={{ gap: 24, position: 'relative' }}>
+      {/* Payout Processing Overlay */}
+      <AnimatePresence>
+        {processingPayout && (
+          <motion.div key="processing"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.80)', zIndex: 9999,
+              display: 'flex', flexDirection: 'column',
+              justifyContent: 'center', alignItems: 'center', gap: 16,
+              padding: 24, textAlign: 'center'
+            }}
+          >
+            <div className="spinner" style={{ borderColor: 'var(--color-gold) transparent' }} />
+            <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--color-gold)' }}>Distributing Prize...</div>
+            <div className="text-muted" style={{ maxWidth: '80%' }}>We are communicating with the blockchain. Please wait up to 20 seconds.</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
         style={{ fontSize: 80 }}>
         {isWinner ? '🏆' : '🎮'}

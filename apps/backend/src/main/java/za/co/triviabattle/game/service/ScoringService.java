@@ -14,11 +14,11 @@ import org.springframework.stereotype.Service;
  *  ┌─────────────────┬────────┐
  *  │ Response time   │ Points │
  *  ├─────────────────┼────────┤
- *  │   0 –  500 ms   │  1000  │
- *  │ 500 – 1000 ms   │   800  │
- *  │ 1000 – 1500 ms  │   600  │
- *  │ 1500 – 2000 ms  │   400  │
- *  │ 2000+ ms        │   200  │
+ *  │   0 – 2000 ms   │  400  │
+ *  │ 2000 – 4000 ms  │   350  │
+ *  │ 4000 – 6000 ms  │   300  │
+ *  │ 6000 – 8000 ms  │   250  │
+ *  │ 8000+ ms        │   200  │
  *  │ Wrong / timeout │     0  │
  *  └─────────────────┴────────┘
  */
@@ -26,8 +26,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class ScoringService {
 
-    private static final int[] BUCKET_POINTS  = {1000, 800, 600, 400, 200};
-    private static final long  BUCKET_SIZE_MS = 500L;
+    private static final int[] BUCKET_POINTS  = {400, 350, 300, 250, 200};
+    private static final long  BUCKET_SIZE_MS = 2000L;
 
     /**
      * Calculate points for a correct answer.

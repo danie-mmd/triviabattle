@@ -187,6 +187,7 @@ public class QuestionGeneratorJob {
                 STYLE RULES:
                 - BREVITY IS KEY: Questions must be short and direct (MAX 100 characters).
                 - NO FILLER: Avoid introductory clauses like "To combat the challenge of..." or "In a surprising move...".
+                - FUTURE-PROOF: Do NOT use temporary relative phrases like "this weekend", "yesterday", or "last month". Questions must remain relevant months from now.
                 - GET STRAIGHT TO THE POINT: e.g., "Which organ produces insulin?" instead of a long medical explanation.
                 - Focus on: politics, sport, technology, movies, entertainment, science.
                 
