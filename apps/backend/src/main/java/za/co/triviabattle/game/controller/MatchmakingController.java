@@ -68,10 +68,16 @@ public class MatchmakingController {
                             .doOnNext(room -> log.info("[Matchmaking] Status check for {}: Match Found in room {}", userId, room))
                             .map(roomId -> {
                                 Map<String, Object> resp = new java.util.HashMap<>();
-                                resp.put("inQueue", false);
-                                resp.put("matchReady", true);
-                                resp.put("roomId", roomId);
-                                resp.put("roomSize", matchmakingService.getRoomSize());
+                                if (roomId.startsWith("CREATING_")) {
+                                    resp.put("inQueue", false);
+                                    resp.put("matchReady", false);
+                                    resp.put("creatingRoom", true);
+                                } else {
+                                    resp.put("inQueue", false);
+                                    resp.put("matchReady", true);
+                                    resp.put("roomId", roomId);
+                                    resp.put("roomSize", matchmakingService.getRoomSize());
+                                }
                                 resp.put("credits", credits);
                                 resp.put("starsBalance", stars);
                                 return resp;

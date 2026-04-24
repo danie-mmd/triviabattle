@@ -185,3 +185,32 @@ export async function executeReset(newRoomId: string): Promise<string> {
 
     return 'reset_requested_' + Date.now();
 }
+export async function executeWithdrawDust(): Promise<string> {
+    const mnemonic = process.env.TON_WALLET_MNEMONIC;
+    if (!mnemonic) return 'mock_dust_hash_' + Date.now();
+
+    const words = mnemonic.split(' ');
+    const client = new TonClient({
+        endpoint: 'https://testnet.toncenter.com/api/v2/jsonRPC',
+        apiKey: process.env.TONCENTER_API_KEY,
+    });
+
+    const key = await mnemonicToWalletKey(words);
+    const wallet = WalletContractV4.create({ workchain: 0, publicKey: key.publicKey });
+    const walletContract = client.open(wallet);
+
+    const escrowAddressString = process.env.ESCROW_ADDRESS;
+    if (!escrowAddressString) return 'mock_dust_hash_' + Date.now();
+
+    const escrow = client.open(Escrow.fromAddress(Address.parse(escrowAddressString)));
+
+    console.log(`[Ton Payout] Reclaiming dust from contract ${escrowAddressString}...`);
+
+    await escrow.send(walletContract.sender(key.secretKey), {
+        value: toNano("0.02")
+    }, {
+        $$type: 'WithdrawDust'
+    });
+
+    return 'dust_requested_' + Date.now();
+}

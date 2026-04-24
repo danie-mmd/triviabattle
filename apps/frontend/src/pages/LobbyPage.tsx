@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { matchmakingApi, authApi } from '@/services/api'
 import StarsPurchase from '@/components/StarsPurchase'
@@ -11,14 +11,17 @@ const POLL_INTERVAL_MS = 2000
 
 export default function LobbyPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const matchType = useGameStore(s => s.matchType)
   const [inQueue, setInQueue] = useState(false)
+  const [creatingRoom, setCreatingRoom] = useState(false)
   const [position, setPosition] = useState(0)
   const [queuePlayers, setQueuePlayers] = useState<{userId: string, name: string}[]>([])
   const [loading, setLoading] = useState(false)
   const credits = useGameStore(s => s.credits)
   const setCredits = useGameStore(s => s.setCredits)
   const starsBalance = useGameStore(s => s.starsBalance)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const wallet = useTonWallet()
 
@@ -28,12 +31,26 @@ export default function LobbyPage() {
     }
   }, [wallet?.account?.address])
 
+  useEffect(() => {
+    if (location.state?.errorToast) {
+      setToastMessage(location.state.errorToast)
+      setTimeout(() => setToastMessage(null), 8000)
+      navigate('/lobby', { replace: true, state: {} })
+    }
+  }, [location.state, navigate])
+
   // Poll for room assignment and queue status
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
         const { data } = await matchmakingApi.getStatus()
-        setInQueue(data.inQueue)
+        if (data.creatingRoom) {
+          setCreatingRoom(true)
+          setInQueue(false)
+        } else {
+          setCreatingRoom(false)
+          setInQueue(data.inQueue)
+        }
         setPosition(data.position)
         setQueuePlayers(data.queuePlayers || [])
         if (data.credits !== undefined) {
@@ -82,6 +99,24 @@ export default function LobbyPage() {
 
   return (
     <div className="page" style={{ gap: 24, paddingTop: 32 }}>
+      {/* Toast Notification overlay */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div key="toast"
+            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            style={{
+              position: 'absolute', top: 16, left: 16, right: 16, zIndex: 10000,
+              background: 'rgba(0,0,0,0.95)', color: 'var(--color-gold)',
+              border: '1px solid rgba(255, 215, 0, 0.3)',
+              padding: '12px 16px', borderRadius: 8, fontWeight: 700, textAlign: 'center',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+            }}
+          >
+            {toastMessage}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button 
@@ -121,7 +156,17 @@ export default function LobbyPage() {
 
       {/* Queue state */}
       <AnimatePresence mode="wait">
-        {!inQueue ? (
+        {creatingRoom ? (
+          <motion.div key="creating"
+            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+            className="glass"
+            style={{ padding: 24, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 16 }}
+          >
+            <div className="spinner" style={{ margin: '0 auto', borderColor: 'var(--color-gold) transparent' }} />
+            <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--color-gold)' }}>Creating the match...</div>
+            <div className="text-muted">Communicating with the TON blockchain to secure your room. Please wait.</div>
+          </motion.div>
+        ) : !inQueue ? (
           <motion.div key="join"
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             style={{ display: 'flex', flexDirection: 'column', gap: 12 }}

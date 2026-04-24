@@ -60,6 +60,7 @@ export const authApi = {
 
 export interface QueueStatusResponse {
   inQueue: boolean
+  creatingRoom?: boolean
   position: number
   roomId?: string
   roomSize?: number

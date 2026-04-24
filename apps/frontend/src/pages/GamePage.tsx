@@ -35,6 +35,8 @@ export default function GamePage() {
   const [depositing, setDepositing] = useState(false)
   const [hasConfirmed, setHasConfirmed] = useState(false)
   const [lobbyInfo, setLobbyInfo] = useState<{playerCount: number, remainingTimeMs: number} | null>(null)
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const sendMessage = useCallback((type: string, payload?: Record<string, unknown>) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -80,7 +82,7 @@ export default function GamePage() {
           validUntil: Math.floor(Date.now() / 1000) + 60,
           messages: [{ 
             address: escrowAddress, 
-            amount: "1000000000", // 1.0 TON in nanoTON
+            amount: "1050000000", // 1.05 TON in nanoTON to ensure >1 TON arrives after gas deduction
             payload: body
           }]
         })
@@ -184,22 +186,28 @@ export default function GamePage() {
             break
           case 'LOBBY_UPDATE':
             setLobbyInfo({ playerCount: msg.playerCount, remainingTimeMs: msg.remainingTimeMs })
+            if (msg.message) {
+              setToastMessage(msg.message)
+              setTimeout(() => setToastMessage(null), 8000)
+            }
+            break
+          case 'LOBBY_REFUNDING':
+            setLoadingMessage(msg.message || "Communicating with blockchain...")
             break
           case 'LOBBY_REFUNDED':
-            alert(msg.message || "Lobby refunded due to lack of players.")
             useGameStore.getState().reset()
-            navigate('/lobby')
+            navigate('/lobby', { state: { errorToast: msg.message || "Lobby refunded due to lack of players." } })
             break
           case 'LOBBY_KICK':
             if (msg.userId === sessionStorage.getItem('trivia_uid')) {
-              alert(msg.message)
               useGameStore.getState().reset()
-              navigate('/lobby')
+              navigate('/lobby', { state: { errorToast: msg.message } })
             }
             break
           case 'ERROR':
             if (msg.userId === sessionStorage.getItem('trivia_uid')) {
-              alert(msg.message)
+              setToastMessage(msg.message)
+              setTimeout(() => setToastMessage(null), 5000)
             }
             break
         }
@@ -237,6 +245,44 @@ export default function GamePage() {
 
   return (
     <div className="page" style={{ gap: 16, position: 'relative', overflow: 'hidden' }}>
+      {/* Toast Notification overlay */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div key="toast"
+            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            style={{
+              position: 'absolute', top: 16, left: 16, right: 16, zIndex: 10000,
+              background: 'rgba(0,0,0,0.95)', color: 'var(--color-gold)',
+              border: '1px solid rgba(255, 215, 0, 0.3)',
+              padding: '12px 16px', borderRadius: 8, fontWeight: 700, textAlign: 'center',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+            }}
+          >
+            {toastMessage}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Transaction loading overlay */}
+      <AnimatePresence>
+        {loadingMessage && (
+          <motion.div key="loadingMessage"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 9999,
+              display: 'flex', flexDirection: 'column',
+              justifyContent: 'center', alignItems: 'center', gap: 16,
+              padding: 24, textAlign: 'center'
+            }}
+          >
+            <div className="spinner" style={{ borderColor: 'var(--color-gold) transparent' }} />
+            <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--color-gold)' }}>Processing...</div>
+            <div className="text-muted" style={{ maxWidth: '80%' }}>{loadingMessage}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Sabotage overlay – rendered on top of everything */}
       <AnimatePresence>
         {sabotageActive && sabotageType === 'INK_BLOT' && <InkBlotOverlay />}

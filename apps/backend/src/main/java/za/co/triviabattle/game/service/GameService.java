@@ -320,9 +320,13 @@ public class GameService {
                 });
         } else if (winnerId != null) {
             double serviceFee = totalPool * 0.2;
-            log.info("[Payout] Triggering TON payout for room {}: winner {} gets {}, fee {}", 
+            
+            log.info("[Payout] Triggering TON payout for room {}: winner {} gets {} TON, fee {} TON", 
                     room.getRoomId(), winnerId, winnerPrize, serviceFee);
-            processPayout = tonService.payoutToWinner(room.getRoomId(), winnerId, winnerPrize, serviceFee);
+            processPayout = tonService.payoutToWinner(room.getRoomId(), winnerId, winnerPrize, serviceFee)
+                    .then(Mono.delay(Duration.ofSeconds(60)))
+                    .doOnSuccess(v -> tonService.withdrawDust())
+                    .then();
         } else {
             log.warn("[Game] No winner for room {}. Skipping payout.", room.getRoomId());
         }
@@ -334,15 +338,15 @@ public class GameService {
 
         return Mono.fromCallable(() -> gameResultRepository.save(result))
                 .then(roomService.saveRoom(room))
-                .then(processPayout)
-                .then(cleanupMappings)
                 .then(Mono.fromRunnable(() -> {
                     webSocketHandler.broadcastToRoom(room.getRoomId(), Map.of(
                             "type", "GAME_OVER",
                             "winnerId", winnerId != null ? winnerId : "None",
                             "scores", room.getScores()
                     ));
-                }));
+                }))
+                .then(cleanupMappings)
+                .then(processPayout);
     }
     public Mono<Void> refundPlayerCredit(String userId, boolean isCreditMatch) {
         if (!isCreditMatch) return Mono.empty();

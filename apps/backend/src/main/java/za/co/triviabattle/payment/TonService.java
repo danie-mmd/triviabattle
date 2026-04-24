@@ -81,5 +81,17 @@ public class TonService {
                 .doOnSuccess(v -> log.info("[TonService] Successfully requested escrow reset for room {}", roomId))
                 .doOnError(e -> log.error("[TonService] Failed executing escrow reset: {}", e.getMessage()));
     }
+    public void withdrawDust() {
+        log.info("[TonService] Triggering automated gas sweep (withdraw dust)...");
+        webClient.post()
+                .uri("/api/withdraw-dust")
+                .bodyValue(Map.of("sweep", true)) 
+                .retrieve()
+                .bodyToMono(String.class)
+                .subscribe(
+                    res -> log.info("[TonService] Dust sweep triggered: {}", res),
+                    err -> log.error("[TonService] Failed to trigger dust sweep: {}", err.getMessage())
+                );
+    }
 }
 
