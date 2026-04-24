@@ -114,7 +114,7 @@ public class MatchmakingService {
 
     private Mono<Room> createNewRoomFromQueue(List<String> userIds, boolean isCreditMatch) {
         String roomId = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
-        long lobbyEndsAt = System.currentTimeMillis() + 120_000;
+        long lobbyEndsAt = System.currentTimeMillis() + 60_000;
         
         return Flux.fromIterable(userIds)
                 .flatMap(uid -> redis.opsForValue().get(USER_NAME_PREFIX + uid)
@@ -259,8 +259,8 @@ private Mono<Void> harvestQueue(String queueKey, boolean isCredit) {
             room.getPlayerIds().add(userId);
         }
 
-        // Ensure new players have at least 60 seconds to deposit
-        long minRemainingMs = 60_000L;
+        // Ensure new players have at least 30 seconds to deposit
+        long minRemainingMs = 30_000L;
         long now = System.currentTimeMillis();
         boolean extended = false;
         if (room.getLobbyEndsAt() - now < minRemainingMs) {

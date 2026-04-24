@@ -94,7 +94,8 @@ export default function GamePage() {
     } catch (err) {
       localStorage.removeItem(`trivia_pending_deposit_${roomId}`)
       console.error("[GamePage] Deposit failed", err)
-      alert("Deposit failed. Please try again.")
+      setToastMessage("Deposit failed. Please try again.")
+      setTimeout(() => setToastMessage(null), 8000)
     } finally {
       setDepositing(false)
     }
