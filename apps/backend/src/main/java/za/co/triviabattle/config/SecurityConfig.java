@@ -35,12 +35,20 @@ public class SecurityConfig {
                         .pathMatchers("/api/payments/stars/webhook").permitAll()
                         .pathMatchers("/actuator/health").permitAll()
                         .pathMatchers("/api/ai/**").permitAll()
+                        // Permit all GET requests for static assets and SPA routes
+                        .pathMatchers(org.springframework.http.HttpMethod.GET, "/**").permitAll()
                         // Everything else requires auth
                         .anyExchange().authenticated()
                 )
                 .addFilterAt(jwtAuthenticationWebFilter(jwtService), SecurityWebFiltersOrder.AUTHENTICATION)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
+                .exceptionHandling(exceptionHandling -> exceptionHandling
+                        .authenticationEntryPoint((exchange, e) -> {
+                            exchange.getResponse().setStatusCode(org.springframework.http.HttpStatus.UNAUTHORIZED);
+                            return Mono.empty();
+                        })
+                )
                 .build();
     }
 

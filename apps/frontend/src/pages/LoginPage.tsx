@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useTelegram } from '@/hooks/useTelegram'
 import { authApi } from '@/services/api'
 import { useGameStore } from '@/store/gameStore'
@@ -8,27 +8,45 @@ export default function LoginPage() {
   const { user, initData } = useTelegram()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+  const [loadingType, setLoadingType] = useState<'TON' | 'CREDITS' | null>(null)
+  const [slowMsg, setSlowMsg] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const slowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleLogin = async (type: 'TON' | 'CREDITS') => {
     useGameStore.getState().setMatchType(type)
     
     setLoading(true)
+    setLoadingType(type)
     setError(null)
+    setSlowMsg(null)
+
+    // Show a "waking up" message only if the backend is slow (cold start)
+    slowTimerRef.current = setTimeout(() => {
+      setSlowMsg('🚀 Waking up the Arena... prepare for battle!')
+    }, 600)
+
     try {
       const { data } = await authApi.login(initData)
+      clearTimeout(slowTimerRef.current!)
+      setSlowMsg(null)
       sessionStorage.setItem('trivia_jwt', data.token)
       sessionStorage.setItem('trivia_uid', data.userId)
       sessionStorage.setItem('trivia_first_name', data.firstName)
       sessionStorage.setItem('trivia_credits', data.credits.toString())
       sessionStorage.setItem('trivia_stars', data.starsBalance.toString())
+      sessionStorage.setItem('trivia_admin', data.isAdmin.toString())
       useGameStore.getState().setCredits(data.credits)
       useGameStore.getState().setStarsBalance(data.starsBalance)
+      useGameStore.getState().setIsAdmin(data.isAdmin)
       navigate('/lobby')
     } catch {
+      clearTimeout(slowTimerRef.current!)
+      setSlowMsg(null)
       setError('Authentication failed. Please try again.')
     } finally {
       setLoading(false)
+      setLoadingType(null)
     }
   }
 
@@ -96,7 +114,29 @@ export default function LoginPage() {
             {error}
           </div>
         )}
-        
+
+        {/* Cold-start notification — only appears when backend is slow to respond */}
+        <AnimatePresence>
+          {slowMsg && (
+            <motion.div
+              key="slow-msg"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              style={{
+                fontSize: 13, textAlign: 'center',
+                color: 'var(--color-gold)',
+                padding: '8px 12px',
+                borderRadius: 8,
+                background: 'rgba(255, 215, 0, 0.08)',
+                border: '1px solid rgba(255, 215, 0, 0.2)'
+              }}
+            >
+              {slowMsg}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <button
           className="btn btn-primary"
           onClick={() => handleLogin('TON')}
@@ -104,17 +144,29 @@ export default function LoginPage() {
           style={{ width: '100%', fontSize: 17, padding: '16px 24px' }}
           id="btn-ton-battle"
         >
-          {loading ? '⏳ Authenticating…' : '⚔️ TON Battle'}
+          {loadingType === 'TON' ? '⏳ Connecting…' : '⚔️ TON Battle'}
         </button>
 
-        <button className="btn btn-primary" onClick={() => handleLogin('CREDITS')} disabled={loading}
-          style={{ width: '100%', fontSize: 17, padding: '16px 24px', border: '2px solid var(--color-gold)', color: 'var(--color-gold)', background: 'transparent' }}>
-          🪙 Credit Battle
+        <button
+          className="btn btn-primary"
+          onClick={() => handleLogin('CREDITS')}
+          disabled={loading}
+          id="btn-credit-battle"
+          style={{ width: '100%', fontSize: 17, padding: '16px 24px', border: '2px solid var(--color-gold)', color: 'var(--color-gold)', background: 'transparent' }}
+        >
+          {loadingType === 'CREDITS' ? '⏳ Connecting…' : '🪙 Credit Battle'}
         </button>
 
-        <p className="text-muted" style={{ fontSize: 12, textAlign: 'center' }}>
-          Choose your match type.
-        </p>
+        <div 
+          onClick={() => navigate('/how-to')}
+          style={{ 
+            fontSize: 14, textAlign: 'center', color: 'var(--color-gold)', 
+            cursor: 'pointer', fontWeight: 700, marginTop: 8, textDecoration: 'underline',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+          }}
+        >
+          📖 How to Play & Wallet Setup
+        </div>
       </motion.div>
     </div>
   )

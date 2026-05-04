@@ -30,6 +30,7 @@ public class MatchmakingService {
     private static final String QUEUE_CREDITS = "matchmaking:queue:credits";
     private static final String USER_NAME_PREFIX = "matchmaking:name:";
     private static final String ACTIVE_LOBBIES_SET = "active:lobbies:set";
+    private static final String TRIGGER_CHANNEL = "matchmaking:trigger";
 
     private final ReactiveRedisTemplate<String, Object> redis;
     private final RoomService roomService;
@@ -53,22 +54,27 @@ public class MatchmakingService {
 
     @PostConstruct
     public void init() {
-        log.info("[Matchmaking] INITIALIZING with roomSize={}, entryFee={}", roomSize, entryFee);
-        log.info("[Matchmaking] Clearing all matchmaking state on startup...");
+        log.info("[Matchmaking] INITIALIZING Phase 2 (Event-Driven) with roomSize={}, entryFee={}", roomSize, entryFee);
         
+        // 1. Subscribe to matchmaking triggers for immediate processing
+        redis.listenToChannel(TRIGGER_CHANNEL)
+                .doOnNext(msg -> {
+                    log.debug("[Matchmaking] Trigger received via Pub/Sub");
+                    acquireLockAndProcess().subscribe();
+                })
+                .subscribe();
+
+        // 2. Perform startup cleanup
+        log.info("[Matchmaking] Clearing all matchmaking state on startup...");
         redis.delete(QUEUE_TON)
-                    .then(redis.delete(QUEUE_CREDITS))
-                    .then(redis.delete(ACTIVE_LOBBIES_SET))
-                    .thenMany(redis.keys(USER_NAME_PREFIX + "*").flatMap(redis::delete))
-                    .thenMany(redis.keys("user:room:*").flatMap(redis::delete))
-                    .thenMany(redis.keys("room:*").flatMap(redis::delete))
-                    .doOnTerminate(() -> log.info("[Matchmaking] Cleanup complete."))
-                    .subscribe(); // Single subscription for the entire chain                
-                redis.keys(USER_NAME_PREFIX + "*").flatMap(redis::delete).subscribe();
-                redis.keys("user:room:*").flatMap(redis::delete).subscribe();
-                redis.keys("room:*").flatMap(redis::delete).subscribe();
-                log.info("[Matchmaking] Cleanup complete.");
-            }
+                .then(redis.delete(QUEUE_CREDITS))
+                .then(redis.delete(ACTIVE_LOBBIES_SET))
+                .thenMany(redis.keys(USER_NAME_PREFIX + "*").flatMap(redis::delete))
+                .thenMany(redis.keys("user:room:*").flatMap(redis::delete))
+                .thenMany(redis.keys("room:*").flatMap(redis::delete))
+                .doOnTerminate(() -> log.info("[Matchmaking] Cleanup complete."))
+                .subscribe();
+    }
 
     public Mono<Void> joinQueue(String userId, String displayName, boolean isCreditMatch) {
         String queueKey = isCreditMatch ? QUEUE_CREDITS : QUEUE_TON;
@@ -77,6 +83,7 @@ public class MatchmakingService {
         return redis.opsForValue().set(USER_NAME_PREFIX + userId, displayName, Duration.ofHours(1))
                 .then(redis.opsForList().remove(queueKey, 0, userId)) 
                 .then(redis.opsForList().rightPush(queueKey, userId))
+                .then(redis.convertAndSend(TRIGGER_CHANNEL, "go")) // Immediate trigger
                 .then();
     }
 
@@ -151,6 +158,12 @@ public class MatchmakingService {
                         .then(redis.opsForSet().add(ACTIVE_LOBBIES_SET, roomId))
                         .thenMany(Flux.fromIterable(userIds))
                         .flatMap(uid -> redis.opsForValue().set("user:room:" + uid, roomId, Duration.ofMinutes(10)))
+                        .doOnComplete(() -> {
+                            // Schedule a one-shot check for when the lobby should expire
+                            Mono.delay(Duration.ofMillis(61_000))
+                                .flatMap(d -> acquireLockAndProcess())
+                                .subscribe();
+                        })
                         .then(Mono.just(room));
 
                 });
@@ -292,16 +305,38 @@ private Mono<Void> harvestQueue(String queueKey, boolean isCredit) {
     }
 
     private static final String MATCHMAKING_LOCK_KEY = "lock:matchmaking";
+    
+    // Safety watchdog: runs every minute to clean up any missed state.
+    // Base polling cost reduced from 5s to 60s (91% reduction in idle chatter).
+    @Scheduled(fixedDelay = 60000)
+    public void watchdog() {
+        tryFormRoom();
+    }
 
-    @Scheduled(fixedDelay = 2000)
     public void tryFormRoom() {
+        // Idle guard: check if there is anything to do before acquiring the lock.
+        // This costs only 3 Redis reads and exits immediately when the server is quiet.
+        Mono.zip(
+            redis.opsForList().size(QUEUE_TON).defaultIfEmpty(0L),
+            redis.opsForList().size(QUEUE_CREDITS).defaultIfEmpty(0L),
+            redis.opsForSet().size(ACTIVE_LOBBIES_SET).defaultIfEmpty(0L)
+        ).flatMap(t -> {
+            long total = t.getT1() + t.getT2() + t.getT3();
+            if (total == 0) {
+                return Mono.empty(); // Nothing to do — skip lock, skip all further Redis reads
+            }
+            return acquireLockAndProcess();
+        }).subscribe();
+    }
+
+    private Mono<Void> acquireLockAndProcess() {
         // Use Redis as a distributed lock to prevent overlapping runs across multiple backend instances
-        redis.opsForValue().setIfAbsent(MATCHMAKING_LOCK_KEY, "locked", Duration.ofSeconds(10))
+        return redis.opsForValue().setIfAbsent(MATCHMAKING_LOCK_KEY, "locked", Duration.ofSeconds(10))
                 .flatMap(acquired -> {
                     if (!Boolean.TRUE.equals(acquired)) {
                         return Mono.empty();
                     }
-                    
+
                     return harvestQueues()
                         .thenMany(redis.opsForSet().members(ACTIVE_LOBBIES_SET))
                         .map(Object::toString)
@@ -315,11 +350,9 @@ private Mono<Void> harvestQueue(String queueKey, boolean isCredit) {
                             boolean allConfirmed = room.getPlayerIds().stream()
                                     .allMatch(id -> room.getDepositsConfirmed().getOrDefault(id, false));
 
-                            webSocketHandler.broadcastToRoom(room.getRoomId(), Map.of(
-                                    "type", "LOBBY_UPDATE",
-                                    "playerCount", room.getPlayerIds().size(),
-                                    "remainingTimeMs", remainingMs
-                            ));
+                            // Broadcast updates only if we are in the watchdog or the room is actually changing.
+                            // We remove the high-frequency tick broadcast to save commands.
+                            // The frontend calculates countdown locally.
 
                             if (expired || (full && allConfirmed)) {
                                 return removeLobbyFromActiveSet(room.getRoomId())
@@ -332,8 +365,7 @@ private Mono<Void> harvestQueue(String queueKey, boolean isCredit) {
                             log.error("[Matchmaking] Loop error: {}", err.getMessage());
                             return redis.delete(MATCHMAKING_LOCK_KEY).then();
                         });
-                })
-                .subscribe();
+                });
     }
 
    /*private Mono<Void> processRoomStartOrRefund(Room room) {

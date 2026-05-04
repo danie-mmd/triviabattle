@@ -170,6 +170,15 @@ public class GameWebSocketHandler implements WebSocketHandler {
                                         "powerUpUsedThisGame", room.getPowerUpsUsedThisGame().contains(userId),
                                         "players", playerList
                                 ));
+
+                                // 3. Send immediate lobby info sync
+                                if (room.getState() == GameState.DEPOSIT_PHASE) {
+                                    broadcast(sessionSink, Map.of(
+                                            "type", "LOBBY_UPDATE",
+                                            "playerCount", room.getPlayerIds().size(),
+                                            "remainingTimeMs", Math.max(0, room.getLobbyEndsAt() - System.currentTimeMillis())
+                                    ));
+                                }
             
                                 if (room.getState() == GameState.QUESTION_ACTIVE && room.getCurrentQuestionIndex() < room.getQuestionIds().size()) {
                                     Long qid = room.getQuestionIds().get(room.getCurrentQuestionIndex());
@@ -220,6 +229,12 @@ public class GameWebSocketHandler implements WebSocketHandler {
                         return roomService.saveRoom(room)
                                 .then(gameService.startMatch(room));
                     } else {
+                        // Notify others about the update
+                        broadcastToRoom(roomId, Map.of(
+                                "type", "LOBBY_UPDATE",
+                                "playerCount", room.getPlayerIds().size(),
+                                "remainingTimeMs", Math.max(0, room.getLobbyEndsAt() - System.currentTimeMillis())
+                        ));
                         return roomService.saveRoom(room).then();
                     }
                 });

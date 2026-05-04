@@ -1,0 +1,17 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+  data:
+    redis:
+      ssl:
+        enabled: true
+  flyway:
+    enabled: false
+logging:
+  level:
+    za.co.triviabattle: INFO

@@ -10,7 +10,7 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
  */
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 10_000,
+  timeout: 30_000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -47,6 +47,7 @@ export interface LoginResponse {
   photoUrl?: string
   starsBalance: number
   credits: number
+  isAdmin: boolean
 }
 
 export const authApi = {
@@ -104,6 +105,21 @@ export const gameApi = {
     api.get<GameResult>(`/api/game/${roomId}/result`),
   confirmDeposit: (roomId: string) =>
     api.post<{ status: string }>(`/api/game/${roomId}/confirm-deposit`),
+}
+
+// ─── Admin ────────────────────────────────────────────────────────────────────
+
+export interface AdminStats {
+  totalUsers: number
+  totalTournaments: number
+  totalEntryFeesNano: number
+  totalPayoutsNano: number
+  profitNano: number
+  profitMargin: number
+}
+
+export const adminApi = {
+  getStats: () => api.get<AdminStats>('/api/admin/stats'),
 }
 
 export default api

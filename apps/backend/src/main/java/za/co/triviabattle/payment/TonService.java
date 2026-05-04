@@ -7,6 +7,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import za.co.triviabattle.users.UserRepository;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
+import jakarta.annotation.PostConstruct;
 
 @Slf4j
 @Service
@@ -14,7 +16,16 @@ import java.util.Map;
 public class TonService {
 
     private final UserRepository userRepository;
-    private final WebClient webClient = WebClient.create("http://localhost:3001");
+    private WebClient webClient;
+
+    @Value("${TON_PAYOUT_URL:http://localhost:3001}")
+    private String tonPayoutUrl;
+
+    @PostConstruct
+    public void init() {
+        this.webClient = WebClient.create(tonPayoutUrl);
+        log.info("[TonService] Initialized WebClient with URL: {}", tonPayoutUrl);
+    }
 
     /**
      * Executes the prize payout on the TON blockchain by triggering the dedicated
@@ -34,7 +45,7 @@ public class TonService {
                         prizeTon, feeTon, roomId);
 
                 return webClient.post()
-                        .uri("/api/payout")
+                        .uri("/payout")
                         .bodyValue(Map.of(
                                 "roomId", roomId,
                                 "winnerId", winnerId,
@@ -59,7 +70,7 @@ public class TonService {
         log.info("[TonService] Triggering Node.js microservice refund for room {}", roomId);
 
         return webClient.post()
-                .uri("/api/refund")
+                .uri("/refund")
                 .bodyValue(Map.of("roomId", roomId))
                 .retrieve()
                 .bodyToMono(Void.class)
@@ -74,7 +85,7 @@ public class TonService {
         log.info("[TonService] Triggering Node.js microservice reset for new room {}", roomId);
 
         return webClient.post()
-                .uri("/api/reset")
+                .uri("/reset")
                 .bodyValue(Map.of("roomId", roomId))
                 .retrieve()
                 .bodyToMono(Void.class)
@@ -84,7 +95,7 @@ public class TonService {
     public void withdrawDust() {
         log.info("[TonService] Triggering automated gas sweep (withdraw dust)...");
         webClient.post()
-                .uri("/api/withdraw-dust")
+                .uri("/withdraw-dust")
                 .bodyValue(Map.of("sweep", true)) 
                 .retrieve()
                 .bodyToMono(String.class)

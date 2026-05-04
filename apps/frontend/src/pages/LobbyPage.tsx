@@ -7,8 +7,6 @@ import WalletConnect from '@/components/WalletConnect'
 import { useTonWallet } from '@tonconnect/ui-react'
 import { useGameStore } from '@/store/gameStore'
 
-const POLL_INTERVAL_MS = 2000
-
 export default function LobbyPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -41,7 +39,10 @@ export default function LobbyPage() {
 
   // Poll for room assignment and queue status
   useEffect(() => {
-    const interval = setInterval(async () => {
+    let intervalId: ReturnType<typeof setInterval>
+    const pollInterval = (inQueue || creatingRoom) ? 3000 : 30000
+
+    const poll = async () => {
       try {
         const { data } = await matchmakingApi.getStatus()
         if (data.creatingRoom) {
@@ -62,13 +63,18 @@ export default function LobbyPage() {
           sessionStorage.setItem('trivia_stars', data.starsBalance.toString())
         }
         if (data.roomId) {
-          clearInterval(interval)
+          clearInterval(intervalId)
           navigate(`/game/${data.roomId}`)
         }
       } catch { /* silent */ }
-    }, POLL_INTERVAL_MS)
-    return () => clearInterval(interval)
-  }, [navigate, setCredits])
+    }
+
+    // Call immediately and then set interval
+    poll()
+    intervalId = setInterval(poll, pollInterval)
+    
+    return () => clearInterval(intervalId)
+  }, [navigate, setCredits, inQueue, creatingRoom])
 
   const joinQueue = async () => {
     if (!wallet && matchType === 'TON') {
@@ -132,7 +138,23 @@ export default function LobbyPage() {
           </button>
           <h1 style={{ fontSize: 28, fontWeight: 800 }}>🏟️ <span className="text-gradient">Lobby</span></h1>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {useGameStore.getState().isAdmin && (
+            <button 
+              className="btn btn-outline" 
+              onClick={() => navigate('/admin')}
+              style={{ padding: '6px 12px', fontSize: 13, borderRadius: 16, fontWeight: 700, border: '1.5px solid var(--color-primary)', color: 'var(--color-primary)' }}
+            >
+              🛠️ Admin
+            </button>
+          )}
+          <button 
+            className="btn btn-outline" 
+            onClick={() => navigate('/how-to')}
+            style={{ padding: '6px 12px', fontSize: 13, borderRadius: 16, fontWeight: 700 }}
+          >
+            ❓ Help
+          </button>
           <div className="glass" style={{ padding: '6px 12px', borderRadius: 16, fontSize: 14, fontWeight: 700, border: '1px solid rgba(255, 215, 0, 0.3)', background: 'rgba(255, 215, 0, 0.15)', color: '#ffd700' }}>
             ⭐ {displayStars} Stars
           </div>

@@ -1,0 +1,15 @@
+spring:
+  config:
+    activate:
+      on-profile: test
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+  data:
+    redis:
+      ssl:
+        enabled: false
+logging:
+  level:
+    za.co.triviabattle: DEBUG

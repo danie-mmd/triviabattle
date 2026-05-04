@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "trivia-battle-prod"
-  }
+    "default": "messages-poc-447012"
+  },
+  "targets": {},
+  "etags": {}
 }

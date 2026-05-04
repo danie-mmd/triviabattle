@@ -31,6 +31,7 @@ interface GameStoreState {
   matchType: 'TON' | 'CREDITS'
   credits: number
   powerUpUsedThisGame: boolean
+  isAdmin: boolean
   
   // Actions
   setGameState: (state: GameState) => void
@@ -44,6 +45,7 @@ interface GameStoreState {
   deductStars: (amount: number) => void
   setAnsweredThisRound: (v: boolean) => void
   setPowerUpUsedThisGame: (v: boolean) => void
+  setIsAdmin: (v: boolean) => void
   resetRound: () => void
   setMatchType: (matchType: 'TON' | 'CREDITS') => void
   reset: () => void
@@ -61,6 +63,7 @@ export const useGameStore = create<GameStoreState>((set) => ({
   matchType: 'TON',
   credits: -1,
   powerUpUsedThisGame: false,
+  isAdmin: false,
 
   setGameState: (gameState) => set({ gameState, answeredThisRound: false }),
   setCurrentQuestion: (question) => set({ currentQuestion: question, answeredThisRound: false }),
@@ -77,6 +80,7 @@ export const useGameStore = create<GameStoreState>((set) => ({
   deductStars: (amount) => set((state) => ({ starsBalance: Math.max(0, state.starsBalance - amount) })),
   setAnsweredThisRound: (v) => set({ answeredThisRound: v }),
   setPowerUpUsedThisGame: (v) => set({ powerUpUsedThisGame: v }),
+  setIsAdmin: (v) => set({ isAdmin: v }),
 
   resetRound: () => set({ currentQuestion: null, answeredThisRound: false }),
 

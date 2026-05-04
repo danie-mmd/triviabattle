@@ -77,7 +77,7 @@ public class AuthController {
         // 4. Log Success
         saveAuthLog(tgUserOpt,AuthLog.AuthStatus.SUCCESS);
 
-        String token = jwtService.generateToken(tgUser);
+        String token = jwtService.generateToken(tgUser, user.isAdmin());
         log.info("[Auth] Login success for user={} ({})", tgUser.getId(), tgUser.getUsername());
 
         return Mono.just(new LoginResponse(
@@ -87,7 +87,8 @@ public class AuthController {
                 tgUser.getFirstName(),
                 tgUser.getPhotoUrl(),
                 user.getStarsBalance(),
-                user.getCredits() != null ? user.getCredits() : 0
+                user.getCredits() != null ? user.getCredits() : 0,
+                user.isAdmin()
         ));
     }
 
@@ -128,6 +129,7 @@ public class AuthController {
             String firstName,
             String photoUrl,
             int starsBalance,
-            int credits
+            int credits,
+            boolean isAdmin
     ) {}
 }

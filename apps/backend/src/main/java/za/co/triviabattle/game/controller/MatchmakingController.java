@@ -82,29 +82,30 @@ public class MatchmakingController {
                                 resp.put("starsBalance", stars);
                                 return resp;
                             })
-                            .switchIfEmpty(Mono.defer(() -> Mono.zip(
-                                    matchmakingService.getQueuePosition(userId),
-                                    matchmakingService.getQueuePlayers()
-                            ).map(tuple -> {
-                                long pos = tuple.getT1();
-                                List<Map<String, String>> players = (List<Map<String, String>>) tuple.getT2();
-                                Map<String, Object> response = new java.util.HashMap<>();
-                                response.put("credits", credits);
-                                response.put("starsBalance", stars);
-                                if (pos < 0) {
-                                    response.put("inQueue", false);
-                                    response.put("matchReady", false);
-                                    response.put("position", 0);
-                                    response.put("queuePlayers", players);
-                                } else {
-                                    response.put("inQueue", true);
-                                    response.put("matchReady", false);
-                                    response.put("position", pos);
-                                    response.put("queuePlayers", players);
-                                    response.put("roomSize", matchmakingService.getRoomSize());
-                                }
-                                return response;
-                            })));
+                            .switchIfEmpty(Mono.defer(() -> matchmakingService.getQueuePosition(userId)
+                                    .flatMap(pos -> {
+                                        if (pos < 0) {
+                                            Map<String, Object> response = new java.util.HashMap<>();
+                                            response.put("credits", credits);
+                                            response.put("starsBalance", stars);
+                                            response.put("inQueue", false);
+                                            response.put("matchReady", false);
+                                            response.put("position", 0);
+                                            return Mono.just(response);
+                                        } else {
+                                            return matchmakingService.getQueuePlayers().map(players -> {
+                                                Map<String, Object> response = new java.util.HashMap<>();
+                                                response.put("credits", credits);
+                                                response.put("starsBalance", stars);
+                                                response.put("inQueue", true);
+                                                response.put("matchReady", false);
+                                                response.put("position", pos);
+                                                response.put("queuePlayers", players);
+                                                response.put("roomSize", matchmakingService.getRoomSize());
+                                                return response;
+                                            });
+                                        }
+                                    })));
                 })
                 .doOnError(err -> log.error("[Matchmaking] Status error for user {}: {}", userId, err.getMessage()));
     }

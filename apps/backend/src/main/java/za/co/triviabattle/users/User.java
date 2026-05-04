@@ -29,6 +29,9 @@ public class User {
     
     private Integer credits = 20;
 
+    @Column(name = "is_admin", columnDefinition = "TINYINT(1)")
+    private boolean isAdmin = false;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

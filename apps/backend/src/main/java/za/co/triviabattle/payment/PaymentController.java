@@ -77,13 +77,20 @@ public class PaymentController {
             @SuppressWarnings("unchecked")
             Map<String, Object> pcq = (Map<String, Object>) update.get("pre_checkout_query");
             String queryId = (String) pcq.get("id");
-            // Always approve for now; answer directly via webhook JSON
-            log.info("[Payment] Answering pre_checkout_query {}", queryId);
-            return Mono.just(Map.of(
-                    "method", "answerPreCheckoutQuery",
-                    "pre_checkout_query_id", queryId,
-                    "ok", true
-            ));
+            
+            log.info("[Payment] Answering pre_checkout_query {} via explicit API call", queryId);
+            
+            return webClientBuilder.build()
+                    .post()
+                    .uri("https://api.telegram.org/bot{token}/answerPreCheckoutQuery", botToken)
+                    .bodyValue(Map.of(
+                            "pre_checkout_query_id", queryId,
+                            "ok", true
+                    ))
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .doOnSuccess(res -> log.info("[Payment] PreCheckoutQuery answered: {}", res))
+                    .then(Mono.just(Map.of("ok", true)));
         }
 
         if (update.containsKey("message")) {
@@ -96,15 +103,20 @@ public class PaymentController {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> from = (Map<String, Object>) message.get("from");
                 Number userIdNum = (Number) from.get("id");
+                
                 log.info("[Payment] Stars payment received: product={} user={}", productType, userIdNum);
 
                 if (userIdNum != null) {
                     Product product = Product.fromType(productType);
-                    userRepository.findById(userIdNum.longValue()).ifPresent(user -> {
-                        user.setStarsBalance(user.getStarsBalance() + product.starAmount());
-                        userRepository.save(user);
-                        log.info("[Payment] Credited {} stars to user {}", product.starAmount(), userIdNum);
-                    });
+                    return Mono.fromCallable(() -> {
+                        return userRepository.findById(userIdNum.longValue()).map(user -> {
+                            user.setStarsBalance(user.getStarsBalance() + product.starAmount());
+                            userRepository.save(user);
+                            log.info("[Payment] Credited {} stars to user {}", product.starAmount(), userIdNum);
+                            return user;
+                        });
+                    }).subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic())
+                    .then(Mono.just(Map.of("ok", true)));
                 }
             }
         }

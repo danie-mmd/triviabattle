@@ -17,7 +17,18 @@ Assumptions: **1 TON = $5.00** · **Entry Fee = 1.0 TON** · **House Cut = 20%**
 
 ---
 
-## Break-Even on $55/mo Infrastructure
+## Infrastructure Cost Comparison
+
+| Strategy | Monthly Fixed | Scalability | Recommended For |
+|---|---|---|---|
+| **Option A (VM)** | **~$55.00** | Linear vertical | High traffic / Stable users |
+| **Option B (Serverless)** | **$0.00** | Elastic horizontal | Launch / Low traffic |
+
+> **Note on Option B:** While serverless has no fixed costs, the unit cost (price per match) is slightly higher on Cloud Run than a VM once you hit several thousand games a month. Pivot to a VM only when your volume justifies $55/mo.
+
+---
+
+## Break-Even Analysis (Zero-Traction Start)
 
 To cover a flat **$55/month** server cost (GCP `e2-standard-2` VM):
 

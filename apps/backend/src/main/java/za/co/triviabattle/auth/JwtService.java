@@ -38,12 +38,13 @@ public class JwtService {
         this.signingKey = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(TelegramUser user) {
+    public String generateToken(TelegramUser user, boolean isAdmin) {
         return Jwts.builder()
                 .subject(String.valueOf(user.getId()))
                 .claim("firstName", user.getFirstName())
                 .claim("username", user.getUsername())
                 .claim("isPremium", user.isPremium())
+                .claim("isAdmin", isAdmin)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtExpiryMs))
                 .signWith(signingKey)

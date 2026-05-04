@@ -15,6 +15,23 @@ A multiplayer trivia Mini App for Telegram where 5 players compete in real-time,
 
 ---
 
+## Environment Separation
+
+### [NEW] [.env.test](file:///home/danie/Development/Projects/Antigravity/TriviaBattle/.env.test)
+- Contains all testnet credentials, local database settings, and test bot tokens.
+
+### [NEW] [.env.prod](file:///home/danie/Development/Projects/Antigravity/TriviaBattle/.env.prod)
+- Contains mainnet credentials, production database settings, and the production bot token.
+- Includes the new production wallet information.
+
+### [NEW] [application-prod.yml](file:///home/danie/Development/Projects/Antigravity/TriviaBattle/apps/backend/src/main/resources/application-prod.yml)
+- Specific Spring Boot configuration for production (SSL for Redis, restricted logging).
+
+### [NEW] [application-test.yml](file:///home/danie/Development/Projects/Antigravity/TriviaBattle/apps/backend/src/main/resources/application-test.yml)
+- Spring Boot configuration for testnet/local dev.
+
+---
+
 ## Proposed Changes
 
 ### Phase 1: Foundation (Scaffolding)

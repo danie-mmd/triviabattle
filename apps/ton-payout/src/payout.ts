@@ -1,5 +1,5 @@
 import { mnemonicToWalletKey } from '@ton/crypto';
-import { WalletContractV4, TonClient, Address, Dictionary, toNano } from '@ton/ton';
+import { WalletContractV5R1, TonClient, Address, Dictionary, toNano } from '@ton/ton';
 
 
 
@@ -15,14 +15,15 @@ export async function executePayout(recipientWallet: string | undefined, prizeTo
     const words = mnemonic.split(' ');
     if (words.length !== 24) throw new Error('Mnemonic must be 24 words.');
 
+    const isMainnet = process.env.TON_NETWORK === 'mainnet';
     const client = new TonClient({
-        endpoint: 'https://testnet.toncenter.com/api/v2/jsonRPC',
+        endpoint: isMainnet ? 'https://toncenter.com/api/v2/jsonRPC' : 'https://testnet.toncenter.com/api/v2/jsonRPC',
         apiKey: process.env.TONCENTER_API_KEY,
     });
 
 
     const key = await mnemonicToWalletKey(words);
-    const wallet = WalletContractV4.create({ workchain: 0, publicKey: key.publicKey });
+    const wallet = WalletContractV5R1.create({ workchain: 0, publicKey: key.publicKey });
     const walletContract = client.open(wallet);
 
 
@@ -74,13 +75,14 @@ export async function executeRefund(): Promise<string> {
     }
 
     const words = mnemonic.split(' ');
+    const isMainnet = process.env.TON_NETWORK === 'mainnet';
     const client = new TonClient({
-        endpoint: 'https://testnet.toncenter.com/api/v2/jsonRPC',
+        endpoint: isMainnet ? 'https://toncenter.com/api/v2/jsonRPC' : 'https://testnet.toncenter.com/api/v2/jsonRPC',
         apiKey: process.env.TONCENTER_API_KEY,
     });
 
     const key = await mnemonicToWalletKey(words);
-    const wallet = WalletContractV4.create({ workchain: 0, publicKey: key.publicKey });
+    const wallet = WalletContractV5R1.create({ workchain: 0, publicKey: key.publicKey });
     const walletContract = client.open(wallet);
 
     console.log(`[Ton Payout] Using wallet address: ${wallet.address.toString()}`);
@@ -140,13 +142,14 @@ export async function executeReset(newRoomId: string): Promise<string> {
     }
 
     const words = mnemonic.split(' ');
+    const isMainnet = process.env.TON_NETWORK === 'mainnet';
     const client = new TonClient({
-        endpoint: 'https://testnet.toncenter.com/api/v2/jsonRPC',
+        endpoint: isMainnet ? 'https://toncenter.com/api/v2/jsonRPC' : 'https://testnet.toncenter.com/api/v2/jsonRPC',
         apiKey: process.env.TONCENTER_API_KEY,
     });
 
     const key = await mnemonicToWalletKey(words);
-    const wallet = WalletContractV4.create({ workchain: 0, publicKey: key.publicKey });
+    const wallet = WalletContractV5R1.create({ workchain: 0, publicKey: key.publicKey });
     const walletContract = client.open(wallet);
 
     const escrowAddressString = process.env.ESCROW_ADDRESS;
@@ -190,13 +193,14 @@ export async function executeWithdrawDust(): Promise<string> {
     if (!mnemonic) return 'mock_dust_hash_' + Date.now();
 
     const words = mnemonic.split(' ');
+    const isMainnet = process.env.TON_NETWORK === 'mainnet';
     const client = new TonClient({
-        endpoint: 'https://testnet.toncenter.com/api/v2/jsonRPC',
+        endpoint: isMainnet ? 'https://toncenter.com/api/v2/jsonRPC' : 'https://testnet.toncenter.com/api/v2/jsonRPC',
         apiKey: process.env.TONCENTER_API_KEY,
     });
 
     const key = await mnemonicToWalletKey(words);
-    const wallet = WalletContractV4.create({ workchain: 0, publicKey: key.publicKey });
+    const wallet = WalletContractV5R1.create({ workchain: 0, publicKey: key.publicKey });
     const walletContract = client.open(wallet);
 
     const escrowAddressString = process.env.ESCROW_ADDRESS;

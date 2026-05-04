@@ -79,18 +79,3 @@ management:
   endpoint:
     health:
       show-details: always
-
----
-spring:
-  config:
-    activate:
-      on-profile: prod
-  jpa:
-    show-sql: false
-  data:
-    redis:
-      ssl:
-        enabled: true
-logging:
-  level:
-    za.co.triviabattle: INFO

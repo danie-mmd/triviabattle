@@ -4,6 +4,8 @@ import LoginPage from '@/pages/LoginPage'
 import LobbyPage from '@/pages/LobbyPage'
 import GamePage from '@/pages/GamePage'
 import ResultsPage from '@/pages/ResultsPage'
+import HowToPage from '@/pages/HowToPage'
+import AdminDashboard from '@/pages/AdminDashboard'
 
 function App() {
   const { isReady } = useTelegram()
@@ -22,6 +24,8 @@ function App() {
       <Route path="/lobby" element={<LobbyPage />} />
       <Route path="/game/:roomId" element={<GamePage />} />
       <Route path="/results/:roomId" element={<ResultsPage />} />
+      <Route path="/how-to" element={<HowToPage />} />
+      <Route path="/admin" element={<AdminDashboard />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

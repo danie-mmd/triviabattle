@@ -110,6 +110,17 @@ export default function GamePage() {
     navigate('/lobby')
   }
 
+  // ── Local Timer Countdown ────────────────────────────────────────────────
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLobbyInfo(prev => {
+        if (!prev || prev.remainingTimeMs <= 0) return prev;
+        return { ...prev, remainingTimeMs: prev.remainingTimeMs - 1000 };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // ── WebSocket connection ───────────────────────────────────────────────────
   useEffect(() => {
     const token = sessionStorage.getItem('trivia_jwt')
