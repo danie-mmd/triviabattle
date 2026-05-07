@@ -123,44 +123,50 @@ export default function LobbyPage() {
         )}
       </AnimatePresence>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button 
-            className="btn btn-outline" 
-            onClick={() => {
-              useGameStore.getState().reset();
-              navigate('/');
-            }}
-            style={{ padding: '8px', minWidth: '40px', borderRadius: '50%', fontSize: '18px' }}
-            title="Back to Arena"
-          >
-            ←
-          </button>
-          <h1 style={{ fontSize: 28, fontWeight: 800 }}>🏟️ <span className="text-gradient">Lobby</span></h1>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {useGameStore.getState().isAdmin && (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button 
               className="btn btn-outline" 
-              onClick={() => navigate('/admin')}
-              style={{ padding: '6px 12px', fontSize: 13, borderRadius: 16, fontWeight: 700, border: '1.5px solid var(--color-primary)', color: 'var(--color-primary)' }}
+              onClick={() => {
+                useGameStore.getState().reset();
+                navigate('/');
+              }}
+              style={{ padding: '8px', minWidth: '40px', borderRadius: '50%', fontSize: '18px' }}
+              title="Back to Arena"
             >
-              🛠️ Admin
+              ←
             </button>
-          )}
-          <button 
-            className="btn btn-outline" 
-            onClick={() => navigate('/how-to')}
-            style={{ padding: '6px 12px', fontSize: 13, borderRadius: 16, fontWeight: 700 }}
-          >
-            ❓ Help
-          </button>
-          <div className="glass" style={{ padding: '6px 12px', borderRadius: 16, fontSize: 14, fontWeight: 700, border: '1px solid rgba(255, 215, 0, 0.3)', background: 'rgba(255, 215, 0, 0.15)', color: '#ffd700' }}>
-            ⭐ {displayStars} Stars
+            <h1 style={{ fontSize: 28, fontWeight: 800 }}>🏟️ <span className="text-gradient">Lobby</span></h1>
+          </div>
+          
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {useGameStore.getState().isAdmin && (
+              <button 
+                className="btn btn-outline" 
+                onClick={() => navigate('/admin')}
+                style={{ padding: '6px 12px', fontSize: 13, borderRadius: 16, fontWeight: 700, border: '1.5px solid var(--color-primary)', color: 'var(--color-primary)' }}
+              >
+                🛠️ Admin
+              </button>
+            )}
+            <button 
+              className="btn btn-outline" 
+              onClick={() => navigate('/how-to')}
+              style={{ padding: '6px 12px', fontSize: 13, borderRadius: 16, fontWeight: 700 }}
+            >
+              ❓ Help
+            </button>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="glass" style={{ flex: 1, minWidth: '100px', padding: '10px 16px', borderRadius: 16, fontSize: 14, fontWeight: 700, border: '1px solid rgba(255, 215, 0, 0.3)', background: 'rgba(255, 215, 0, 0.1)', color: '#ffd700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <span style={{ fontSize: 18 }}>⭐</span> {displayStars} Stars
           </div>
           {(matchType === 'CREDITS' || (sessionStorage.getItem('trivia_credits') !== null)) && (
-            <div className="glass" style={{ padding: '6px 12px', borderRadius: 16, fontSize: 14, fontWeight: 700, border: '1px solid rgba(74, 222, 128, 0.3)', background: 'rgba(74, 222, 128, 0.15)', color: '#4ade80' }}>
-              🪙 {displayCredits} Credits
+            <div className="glass" style={{ flex: 1, minWidth: '100px', padding: '10px 16px', borderRadius: 16, fontSize: 14, fontWeight: 700, border: '1px solid rgba(74, 222, 128, 0.3)', background: 'rgba(74, 222, 128, 0.1)', color: '#4ade80', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <span style={{ fontSize: 18 }}>🪙</span> {displayCredits} Credits
             </div>
           )}
         </div>
@@ -186,7 +192,12 @@ export default function LobbyPage() {
           >
             <div className="spinner" style={{ margin: '0 auto', borderColor: 'var(--color-gold) transparent' }} />
             <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--color-gold)' }}>Creating the match...</div>
-            <div className="text-muted">Communicating with the TON blockchain to secure your room. Please wait.</div>
+            <div className="text-muted">
+              {matchType === 'CREDITS' 
+                ? "Preparing your arena. This will only take a moment."
+                : "Communicating with the TON blockchain to secure your room. Please wait."
+              }
+            </div>
           </motion.div>
         ) : !inQueue ? (
           <motion.div key="join"

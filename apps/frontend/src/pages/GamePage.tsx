@@ -75,8 +75,8 @@ export default function GamePage() {
         console.log("[GamePage] Sending TON transaction...");
         const escrowAddress = import.meta.env.VITE_ESCROW_CONTRACT_ADDRESS || 'EQAybJAQ1KdU1u3jHyC94EDsogooT4dyIjH8nTlFhsJH71Bu'
         
-        // OP_DEPOSIT opcode is 0x4a25ce37
-        const body = 'te6cckEBAQEABgAACEolzjc+Udcj'; // Base64 for Deposit message cell
+        // Deposit opcode is 0x4a25ce37
+        const body = 'te6cckEBAQEABgAACEolzjc+Udcj'; 
         
         await tonConnectUI.sendTransaction({
           validUntil: Math.floor(Date.now() / 1000) + 60,
@@ -346,10 +346,33 @@ export default function GamePage() {
       {/* Main game area */}
       <AnimatePresence mode="wait">
         {gameState === 'WAITING' && (
-          <motion.div key="waiting" className="page-centered" style={{ flex: 1 }}
+          <motion.div key="waiting" className="page-centered" style={{ flex: 1, gap: 24 }}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="spinner" />
-            <p style={{ marginTop: 16 }}>Waiting for players…</p>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+              <div className="spinner" />
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: 20, fontWeight: 700 }}>Initializing Arena…</p>
+                <p className="text-muted">Preparing your trivia battle. This won't take long.</p>
+              </div>
+            </div>
+
+            {players.length > 0 && (
+              <div className="glass" style={{ width: '100%', padding: 20, textAlign: 'center' }}>
+                <div style={{ fontSize: 13, textTransform: 'uppercase', opacity: 0.6, marginBottom: 12 }}>Players in Arena:</div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {players.map((p) => (
+                    <motion.div key={p.userId} initial={{ scale: 0 }} animate={{ scale: 1 }}
+                      className="glass" style={{ padding: '6px 12px', borderRadius: 20, fontSize: 13, border: '1px solid var(--color-primary)' }}>
+                      👤 {p.firstName}
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button className="btn btn-outline" onClick={handleCancelEntry} style={{ width: '200px' }}>
+              ← Exit Arena
+            </button>
           </motion.div>
         )}
 

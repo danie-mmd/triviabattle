@@ -5,12 +5,13 @@ import { executePayout, executeRefund, executeReset } from './payout';
 
 import path from 'path';
 
-// Load env from root based on APP_ENV
-const envMode = process.env.APP_ENV || 'test';
-dotenv.config({ path: path.resolve(__dirname, `../../../../.env.${envMode}`) });
-
-// Fallback to local .env if root specific env doesn't exist or doesn't have all keys
-dotenv.config();
+// Load env from root based on APP_ENV if secrets are not already set
+if (!process.env.TON_WALLET_MNEMONIC) {
+    const envMode = process.env.APP_ENV || 'test';
+    dotenv.config({ path: path.resolve(__dirname, `../../../../.env.${envMode}`) });
+    // Fallback to local .env
+    dotenv.config();
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;

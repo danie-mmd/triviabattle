@@ -70,7 +70,7 @@ The payout service handles prizes and resets.
       --entry-point=tonPayoutFunction \
       --trigger-http \
       --allow-unauthenticated \
-      --set-env-vars "TON_WALLET_MNEMONIC=...,ESCROW_ADDRESS=...,TONCENTER_API_KEY=..."
+      --set-secrets "TON_WALLET_MNEMONIC=TON_MNEMONIC:latest,ESCROW_ADDRESS=ESCROW_CONTRACT_ADDRESS:latest,TONCENTER_API_KEY=TONCENTER_API_KEY:latest"
     ```
 3.  **Note the URL**: After deployment, GCP will provide an HTTPS URL for the function. Save this for Step 3.
 
@@ -88,13 +88,14 @@ We use a **Native Image** build to ensure the game wakes up in <200ms when playe
 2.  **Deploy to Cloud Run**:
     ```bash
     gcloud run deploy trivia-backend \
-      --image gcr.io/messages-poc-447012/trivia-backend:latest \
-      --platform managed \
-      --region us-central1 \
-      --allow-unauthenticated \
-      --set-env-vars "MYSQL_URL=jdbc:mysql://[VM_IP]:3306/trivia,REDIS_HOST=rational-koi-107105.upstash.io,SPRING_PROFILES_ACTIVE=prod"
+        --image gcr.io/messages-poc-447012/trivia-backend:latest \
+        --platform managed \
+        --region europe-west1 \
+        --allow-unauthenticated \
+        --set-env-vars "MYSQL_URL=jdbc:mysql://[VM_IP]:3306/triviabattle,MYSQL_USERNAME=triviabattle,REDIS_HOST=rational-koi-107105.upstash.io,REDIS_PORT=6379,SPRING_PROFILES_ACTIVE=prod,TON_PAYOUT_URL=https://europe-west1-messages-poc-447012.cloudfunctions.net/ton-payout" \
+        --set-secrets "MYSQL_PASSWORD=MYSQL_PASSWORD:latest,BOT_TOKEN=BOT_TOKEN:latest,JWT_SECRET=JWT_SECRET:latest,REDIS_PASSWORD=REDIS_PASSWORD:latest"
+
     ```
-    *(Ensure you also set `BOT_TOKEN`, `JWT_SECRET`, and the `TON_PAYOUT_URL` pointing to the function from Step 2).*
 
 ---
 
@@ -116,6 +117,39 @@ Finally, we point the React app to the production backend URLs.
 1.  **Join a Match**: Open your Telegram Bot, connect your real TonKeeper wallet.
 2.  **Deposit**: Confirm a 1.05 TON transaction on the **Mainnet**.
 3.  **Verify Flow**: Ensure questions are served normally and the Payout Cloud Function triggers upon completion.
+
+---
+
+## Step 6: Scheduled Question Generation (Cloud Run Job)
+Cloud Run Services scale to zero, so internal scheduled tasks won't run. We use a lightweight Python script deployed as a Cloud Run Job.
+
+### 1. Build and Push
+```bash
+cd apps/question-generator
+gcloud builds submit --tag gcr.io/messages-poc-447012/trivia-generator:latest .
+```
+
+### 2. Deploy Job
+The job uses Application Default Credentials. Ensure the service account `gemini-user@messages-poc-447012.iam.gserviceaccount.com` is used (or the default runner has **Vertex AI User** role).
+
+```bash
+gcloud run jobs deploy trivia-generate-questions \
+  --image gcr.io/messages-poc-447012/trivia-generator:latest \
+  --region europe-west1 \
+  --service-account gemini-user@messages-poc-447012.iam.gserviceaccount.com \
+  --set-env-vars "GCP_PROJECT_ID=messages-poc-447012,GCP_LOCATION=europe-west1,MYSQL_URL=jdbc:mysql://[VM_IP]:3306/trivia,MYSQL_USERNAME=trivia" \
+  --set-secrets "MYSQL_PASSWORD=TRIVIA_MYSQL_PASSWORD:latest"
+```
+
+### 3. Schedule the Job (Cloud Scheduler)
+```bash
+gcloud scheduler jobs create http daily-question-gen \
+  --location europe-west1 \
+  --schedule "0 4 * * *" \
+  --uri "https://europe-west1-run.googleapis.com/v1/projects/messages-poc-447012/locations/europe-west1/jobs/trivia-generate-questions:run" \
+  --http-method POST \
+  --oauth-service-account-email gemini-user@messages-poc-447012.iam.gserviceaccount.com
+```
 
 ---
 

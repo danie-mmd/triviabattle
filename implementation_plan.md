@@ -8,7 +8,7 @@ A multiplayer trivia Mini App for Telegram where 5 players compete in real-time,
 > **Smart Contract / Wallet Interactions**: Tact is a new language for the TON ecosystem. The generated smart contract will be a working skeleton but will need audit before mainnet deployment. TON testnet is recommended for initial testing.
 
 > [!IMPORTANT]
-> **Environment Variables Required**: Several secrets are needed to run the app locally. See the `.env.example` files generated in each service. You will need: `BOT_TOKEN`, `REDIS_URL`, `MYSQL_URL`, `GEMINI_API_KEY`, `TON_WALLET_ADDRESS`.
+> **Environment Variables Required**: Several secrets are needed to run the app locally. See the `.env.example` files generated in each service. You will need: `BOT_TOKEN`, `REDIS_URL`, `MYSQL_URL`, `GCP_PROJECT_ID`, `TON_WALLET_ADDRESS`.
 
 > [!WARNING]
 > **GCP & Firebase Setup**: The Dockerfile and `firebase.json` will be scaffolded but GCP Cloud Run and Firebase Hosting require manual project creation and IAM setup before deployment.
@@ -164,9 +164,11 @@ A multiplayer trivia Mini App for Telegram where 5 players compete in real-time,
 - Submit triggers timer (shown as shrinking progress bar)
 - Sends `SUBMIT_ANSWER` to WebSocket
 
-#### [NEW] Backend: `src/main/java/.../ai/QuestionGeneratorJob.java`
-- `@Scheduled` task (or triggered via Cloud Scheduler HTTP endpoint)
-- Calls Gemini API with prompt: *"Generate 10 South Africa and global trivia questions from today's trending news. Return JSON: [{question, options: [], correctIndex, category, difficulty}]"*
+#### [NEW] Backend: `apps/question-generator/main.py`
+- Triggered via Cloud Scheduler HTTP endpoint (Cloud Run Job)
+- Uses Vertex AI SDK with a Service Account (ADC)
+- Generates 10 South Africa and global trivia questions from today's trending news. 
+- Returns JSON: `[{question, options: [], correctIndex, category, difficulty}]`
 - Parses response, deduplicates by question hash, inserts into MySQL `questions` table
 
 ---

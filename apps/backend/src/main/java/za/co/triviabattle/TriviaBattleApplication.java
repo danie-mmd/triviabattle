@@ -45,15 +45,8 @@ public class TriviaBattleApplication {
                 System.setProperty(key, value);
             });
 
-            String sysGemini = System.getenv("TRIVIA_GEMINI_API_KEY");
-            if (sysGemini != null) {
-                System.out.println("[SystemEnv] TRIVIA_GEMINI_API_KEY detected in system environment (length: " + sysGemini.length() + ")");
-            }
-            
-            if (System.getProperty("TRIVIA_GEMINI_API_KEY") != null) {
-                System.out.println("[Dotenv] Successfully loaded TRIVIA_GEMINI_API_KEY");
-            } else {
-                System.err.println("[Dotenv] WARNING: TRIVIA_GEMINI_API_KEY still missing!");
+            if (System.getProperty("BOT_TOKEN") != null) {
+                System.out.println("[Dotenv] Successfully loaded core environment variables");
             }
         } catch (Exception e) {
             System.err.println("[Dotenv] Error loading .env: " + e.getMessage());

@@ -43,13 +43,10 @@ server:
 
 # ── App Config ─────────────────────────────────────────────
 app:
-  bot-token: ${BOT_TOKEN}
+  bot-token: ${BOT_TOKEN:}
   jwt:
     secret: ${JWT_SECRET:change_me_in_production_32_chars!!}
     expiry-ms: ${JWT_EXPIRY_MS:86400000}
-  gemini:
-    api-key: ${TRIVIA_GEMINI_API_KEY:}
-    model: gemini-2.5-flash
   ton:
     authorized-wallet: ${TON_AUTHORIZED_WALLET:}
     network: ${TON_NETWORK:testnet}

@@ -250,7 +250,7 @@ private Mono<Void> harvestQueue(String queueKey, boolean isCredit) {
                 })
                 .switchIfEmpty(Mono.defer(() -> {
                     // Fix applied here: Added .then() to convert Mono<Room> to Mono<Void>
-                    if (size >= 2 || isCredit) { 
+                    if (size >= 1) { 
                         int batchSize = Math.min(size.intValue(), roomSize);
                         
                         return Flux.range(0, batchSize)
@@ -331,7 +331,7 @@ private Mono<Void> harvestQueue(String queueKey, boolean isCredit) {
 
     private Mono<Void> acquireLockAndProcess() {
         // Use Redis as a distributed lock to prevent overlapping runs across multiple backend instances
-        return redis.opsForValue().setIfAbsent(MATCHMAKING_LOCK_KEY, "locked", Duration.ofSeconds(10))
+        return redis.opsForValue().setIfAbsent(MATCHMAKING_LOCK_KEY, "locked", Duration.ofSeconds(60))
                 .flatMap(acquired -> {
                     if (!Boolean.TRUE.equals(acquired)) {
                         return Mono.empty();
@@ -511,7 +511,7 @@ private Mono<Void> harvestQueue(String queueKey, boolean isCredit) {
                     long now = System.currentTimeMillis();
                     boolean isExpired = now >= room.getLobbyEndsAt();
                     
-                    if (count >= 2 || (count == 1 && room.isCreditMatch())) {
+                    if (count >= 1) { 
                         // Normal start logic...
                         return Mono.fromCallable(() -> {
                             Tournament tournament = Tournament.builder()

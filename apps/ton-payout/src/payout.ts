@@ -26,6 +26,8 @@ export async function executePayout(recipientWallet: string | undefined, prizeTo
     const wallet = WalletContractV5R1.create({ workchain: 0, publicKey: key.publicKey });
     const walletContract = client.open(wallet);
 
+    console.log(`[Ton Payout] Using wallet version V5R1. Derived address: ${wallet.address.toString()}`);
+    console.log(`[Ton Payout] Expected Authorized Wallet from .env: ${process.env.AUTHORIZED_WALLET_ADDRESS || 'Not set'}`);
 
     const escrowAddressString = process.env.ESCROW_ADDRESS;
     if (!escrowAddressString || escrowAddressString.trim() === '' || escrowAddressString.length < 10) {
@@ -42,6 +44,17 @@ export async function executePayout(recipientWallet: string | undefined, prizeTo
     }
     const escrow = client.open(Escrow.fromAddress(escrowAddress));
 
+    // Check if contract is already settled before payout
+    try {
+        const isSettled = await escrow.getIsSettled();
+        if (isSettled) {
+            console.warn('[Ton Payout] SKIPPING Payout: Contract is already settled. No action taken.');
+            return 'already_settled';
+        }
+    } catch (e: any) {
+        console.warn('[Ton Payout] Could not check settle status, proceeding:', e.message);
+    }
+
     // Construct the winners map (Address -> NanoTON mapping expected by Tact)
     const winners = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.BigInt(257));
     
@@ -56,13 +69,18 @@ export async function executePayout(recipientWallet: string | undefined, prizeTo
 
     console.log(`[Ton Payout] Sending payout message. Prize: ${prizeTon} to ${recipientWallet}, Fee: ${feeTon} to ${wallet.address.toString()}`);
 
-    // Send the Payout message through our wallet to the Escrow contract
-    await escrow.send(walletContract.sender(key.secretKey), {
-        value: toNano("0.1") // Higher GAS limit for multiple payouts
-    }, {
-        $$type: 'Payout',
-        winners: winners
-    });
+    try {
+        // Send the Payout message through our wallet to the Escrow contract
+        await escrow.send(walletContract.sender(key.secretKey), {
+            value: toNano("0.1") 
+        }, {
+            $$type: 'Payout',
+            winners: winners
+        });
+    } catch (err: any) {
+        console.error(`[Ton Payout] TRANSACTION FAILED: ${err.message}`);
+        throw err;
+    }
 
     return 'tx_requested_' + Date.now();
 }
@@ -102,16 +120,17 @@ export async function executeRefund(): Promise<string> {
     }
     const escrow = client.open(Escrow.fromAddress(escrowAddress));
 
-    // Optional: Check contract status before sending
+    // Check contract status BEFORE sending
     try {
         const isSettled = await escrow.getIsSettled();
         const pool = await escrow.getPrizePool();
         console.log(`[Ton Payout] Contract Status - Settled: ${isSettled}, Balance: ${pool} nanoTON`);
         if (isSettled) {
-            console.warn('[Ton Payout] WARNING: Contract is already settled. Refund will likely fail.');
+            console.warn('[Ton Payout] SKIPPING: Contract is already settled. No action taken.');
+            return 'already_settled';
         }
     } catch (e: any) {
-        console.warn('[Ton Payout] Could not fetch contract status:', e.message);
+        console.warn('[Ton Payout] Could not fetch contract status, proceeding anyway:', e.message);
     }
 
     const seqno = await walletContract.getSeqno();
